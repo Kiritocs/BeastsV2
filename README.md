@@ -156,6 +156,8 @@ In `Automation -> Stash & Map Device -> Atlas Map Selection`:
 
 ### 8. Optional: enable the analytics web dashboard
 
+The analytics dashboard and session handling are both still in a very, very early stage. Expect rough edges, incomplete workflows, and occasional data inconsistencies.
+
 1. Turn on `Analytics: Web Dashboard -> Enable`.
 2. Keep the default port unless it conflicts with something else.
 3. Use `Open Dashboard In Browser` or `Copy Dashboard URL`.
@@ -352,6 +354,8 @@ You can also:
 
 The web dashboard is useful when you want deeper review than the in-game overlay.
 
+It is still in a very, very early stage, and the same applies to session handling and saved-session workflows.
+
 It can show:
 
 - Current session summary.
@@ -428,6 +432,9 @@ Do not debug sell sequence first. Make these work separately first:
 Double-check before pressing `Delete Visible Beasts`.
 
 ## Troubleshooting
+
+If you hit an error or automation behaves unexpectedly, send the `BeastsV2.log` file from the plugin config folder when reporting the issue.
+You do not need to enable `Diagnostics: Verbose Logging` first.
 
 ### Itemize stops because inventory is full
 
