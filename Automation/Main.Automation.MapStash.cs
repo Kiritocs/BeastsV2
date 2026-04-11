@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using ExileCore;
 using ExileCore.PoEMemory;
 using ExileCore.PoEMemory.Components;
@@ -10,6 +11,7 @@ using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.PoEMemory.Elements.InventoryElements;
 using ExileCore.Shared.Enums;
 using ExileCore.Shared.Nodes;
+using ImGuiNET;
 using Newtonsoft.Json;
 using SharpDX;
 
@@ -22,6 +24,7 @@ public partial class Main
     private const int MapStashMaxPageNumber = 6;
     private const int MapStashDiscoveryRetryCount = 3;
     private const int MapStashDiscoveryRetryDelayMs = 15;
+    private static readonly int[] MapStashSearchBarPath = [3, 1, 0];
 
     private T RetryMapStashDiscovery<T>(Func<int, T> attemptFunc, Func<T, bool> isResolved = null) where T : class
     {
@@ -777,6 +780,58 @@ public partial class Main
 
     private IList<Element> GetVisibleMapStashPageItems() => MapStashUi.GetVisiblePageItems();
 
+    private static Entity GetMapStashItemEntity(Element item) => item is NormalInventoryItem inventoryItem ? inventoryItem.Item : item?.Entity;
+
+    private static bool IsMapStashItemHighlighted(Element item) =>
+        item is NormalInventoryItem inventoryItem
+            ? inventoryItem.isHighlighted
+            : item?.HasShinyHighlight == true || item?.isHighlighted == true;
+
+    private bool IsMatchingMapStashItem(Element item, string metadata, string itemName) =>
+        GetMapStashItemEntity(item) is { } entity
+        && (Settings?.StashAutomation?.EnableMapRegexFilter?.Value != true || IsMapStashItemHighlighted(item))
+        && (!string.IsNullOrWhiteSpace(metadata)
+            ? entity.Metadata.EqualsIgnoreCase(metadata)
+            : !string.IsNullOrWhiteSpace(itemName) && entity.GetComponent<Base>()?.Name.EqualsIgnoreCase(itemName) == true);
+
+    private async Task ApplyMapStashSearchRegexAsync(string regex)
+    {
+        ThrowIfAutomationStopRequested();
+        if (string.IsNullOrWhiteSpace(regex))
+        {
+            throw new InvalidOperationException("Configured map regex is empty.");
+        }
+
+        string ReadSearchText() => TryGetChildFromIndicesQuietly(GameController?.IngameState?.IngameUi?.StashElement, MapStashSearchBarPath)?.Text?.Trim();
+
+        var existingRegex = ReadSearchText();
+        if (string.Equals(existingRegex, regex, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        ReleaseAutomationModifierKeys();
+        ImGui.SetClipboardText(regex);
+
+        await CtrlTapKeyAsync(Keys.F, AutomationTiming.KeyTapDelayMs, AutomationTiming.FastPollDelayMs);
+        await DelayForUiCheckAsync(AutomationTiming.UiCheckInitialSettleDelayMs);
+        await PasteClipboardAsync();
+        await DelayForUiCheckAsync(AutomationTiming.UiCheckInitialSettleDelayMs);
+
+        _ = await PollAutomationValueAsync(
+            () =>
+            {
+                var currentRegex = ReadSearchText();
+                return string.Equals(currentRegex, regex, StringComparison.Ordinal) ? currentRegex : null;
+            },
+            text => text != null,
+            300,
+            AutomationTiming.FastPollDelayMs);
+
+        await TapKeyAsync(Keys.Enter, AutomationTiming.KeyTapDelayMs, AutomationTiming.FastPollDelayMs);
+        await DelayForUiCheckAsync(100);
+    }
+
     private static void CollectVisibleEntityDescendants(Element root, ICollection<Element> results)
     {
         if (root == null || results == null)
@@ -822,23 +877,26 @@ public partial class Main
         return null;
     }
 
-    private static Element FindMapStashPageItemByName(IList<Element> items, string itemName) =>
+    private Element FindMapStashPageItemByName(IList<Element> items, string itemName) =>
         string.IsNullOrWhiteSpace(itemName)
             ? null
-            : items?.FirstOrDefault(x => x?.Entity?.GetComponent<Base>()?.Name.EqualsIgnoreCase(itemName) == true);
+            : GetMatchingMapStashPageItems(items, null, itemName).FirstOrDefault();
 
-    private static Element FindNextMatchingMapStashPageItem(IList<Element> items, string metadata) =>
+    private IList<Element> GetMatchingMapStashPageItems(IList<Element> items, string metadata, string itemName = null) =>
+        items?
+            .Where(x => IsMatchingMapStashItem(x, metadata, itemName))
+            .OrderByScreenPosition(x => x.GetClientRect())
+            .ToList();
+
+    private Element FindNextMatchingMapStashPageItem(IList<Element> items, string metadata) =>
         string.IsNullOrWhiteSpace(metadata)
             ? null
-            : items?
-                .Where(x => x?.Entity?.Metadata.EqualsIgnoreCase(metadata) == true)
-                .OrderByScreenPosition(x => x.GetClientRect())
-                .FirstOrDefault();
+            : GetMatchingMapStashPageItems(items, metadata).FirstOrDefault();
 
-    private static int CountMatchingMapStashPageItems(IList<Element> items, string metadata) =>
+    private int CountMatchingMapStashPageItems(IList<Element> items, string metadata) =>
         string.IsNullOrWhiteSpace(metadata)
             ? 0
-            : items?.Count(x => x?.Entity?.Metadata.EqualsIgnoreCase(metadata) == true) ?? 0;
+            : items?.Count(x => IsMatchingMapStashItem(x, metadata, null)) ?? 0;
 
     private static string DescribeEntity(Entity entity)
     {
@@ -850,18 +908,8 @@ public partial class Main
         return $"name='{entity.GetComponent<Base>()?.Name}', metadata='{entity.Metadata}'";
     }
 
-    private bool MapStashVisiblePageContainsMatch(string itemName, string metadata)
-    {
-        var visiblePageItems = GetVisibleMapStashPageItems();
-        if (visiblePageItems == null)
-        {
-            return false;
-        }
-
-        return !string.IsNullOrWhiteSpace(metadata)
-            ? visiblePageItems.Any(x => x?.Entity?.Metadata.EqualsIgnoreCase(metadata) == true)
-            : visiblePageItems.Any(x => x?.Entity?.GetComponent<Base>()?.Name.EqualsIgnoreCase(itemName) == true);
-    }
+    private bool MapStashVisiblePageContainsMatch(string itemName, string metadata) =>
+        GetVisibleMapStashPageItems()?.Any(x => IsMatchingMapStashItem(x, metadata, itemName)) == true;
 
     private int GetVisibleMapStashPageMatchingQuantity(string metadata) =>
         GetVisibleMatchingQuantity(GetVisibleMapStashPageItems, metadata, CountMatchingMapStashPageItems);

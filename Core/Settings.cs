@@ -568,6 +568,12 @@ public class StashAutomationSettings
     [JsonProperty("AutoRestockWhenMapDeviceEmpty")]
     public ToggleNode AutoRestockMissingMapDeviceItems { get; set; } = new(false);
 
+    [Menu("Enable Map Regex Filter", "When enabled, restock pastes the configured regex into the map-stash search bar and only picks highlighted matching maps. This applies to the map slot only, never fragment slots.")]
+    public ToggleNode EnableMapRegexFilter { get; set; } = new(false);
+
+    [Menu("Map Regex Pattern", "Regex pasted into the map-stash search bar before restocking maps. Build this with https://poe.re/#/maps. Only highlighted matching maps are eligible for the map slot.")]
+    public TextNode MapRegexPattern { get; set; } = new(string.Empty);
+
     internal HotkeyNodeV2 RestockHotkey
     {
         get => _restockHotkey;

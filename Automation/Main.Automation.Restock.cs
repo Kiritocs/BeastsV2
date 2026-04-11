@@ -497,6 +497,14 @@ public partial class Main
         }
 
         await EnsureMapStashPageSelectedAsync(target, 1);
+        if (Settings?.StashAutomation?.EnableMapRegexFilter?.Value == true)
+        {
+            var regex = Settings?.StashAutomation?.MapRegexPattern?.Value?.Trim();
+            await ApplyMapStashSearchRegexAsync(!string.IsNullOrWhiteSpace(regex)
+                ? regex
+                : throw new InvalidOperationException("Map regex filter is enabled, but Map Regex Pattern is empty."));
+        }
+
         await EnsureMapStashPageWithItemSelectedAsync(target);
     }
 
@@ -517,7 +525,9 @@ public partial class Main
         var sourcePageItem = FindMapStashPageItemByName(visiblePageItems, configuredItemName);
         if (sourcePageItem?.Entity == null)
         {
-            throw new InvalidOperationException($"No source item found for {label}.");
+            throw new InvalidOperationException(Settings?.StashAutomation?.EnableMapRegexFilter?.Value == true
+                ? $"No highlighted source item found for {label}. Check the configured map regex and current map-stash search results."
+                : $"No source item found for {label}.");
         }
 
         return new RestockVisibleSource(

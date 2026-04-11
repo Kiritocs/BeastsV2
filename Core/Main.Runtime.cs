@@ -162,6 +162,7 @@ public partial class Main
             TrySaveSettingsSnapshot,
             IsMapStashTarget,
             TryGetConfiguredMapTier,
+            IsMatchingMapStashItem,
             MapStashVisiblePageContainsMatch,
             MapStashTierOneToNineTabPath,
             MapStashTierTenToSixteenTabPath,
@@ -192,6 +193,7 @@ public partial class Main
     private RestockTransferPlannerService RestockTransferPlanning => _restockTransferPlannerService ??= new RestockTransferPlannerService(
         new RestockTransferPlannerCallbacks(
             GetVisibleMapStashPageItems,
+            (items, metadata) => GetMatchingMapStashPageItems(items, metadata),
             (items, metadata) => FindNextMatchingMapStashPageItem(items, metadata),
             (items, metadata) => CountMatchingMapStashPageItems(items, metadata),
             WaitForNextMatchingMapStashPageItemAsync,

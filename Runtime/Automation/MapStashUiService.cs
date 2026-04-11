@@ -33,6 +33,7 @@ internal sealed record MapStashUiCallbacks(
     Action SaveSettingsSnapshot,
     Func<StashAutomationTargetSettings, bool> IsMapStashTarget,
     Func<StashAutomationTargetSettings, int?> TryGetConfiguredMapTier,
+    Func<Element, string, string, bool> IsMatchingVisibleMapStashItem,
     Func<string, string, bool> VisiblePageContainsMatch,
     IReadOnlyList<int> TierOneToNineTabPath,
     IReadOnlyList<int> TierTenToSixteenTabPath,
@@ -121,7 +122,7 @@ internal sealed class MapStashUiService
                 continue;
             }
 
-            if (_callbacks.VisiblePageContainsMatch(itemName, metadata))
+            if (await VisiblePageContainsMatchQuicklyAsync(page, itemName, metadata))
             {
                 _callbacks.LogDebug($"Found requested map stash item on page {page}. item='{itemName}', metadata='{metadata}'");
                 return true;
@@ -137,6 +138,12 @@ internal sealed class MapStashUiService
         return RetryDiscovery(
             attempt =>
             {
+                var visibleInventoryItems = _callbacks.GetStash()?.VisibleStash?.VisibleInventoryItems;
+                if (visibleInventoryItems?.Count > 0)
+                {
+                    return visibleInventoryItems.Cast<Element>().ToList();
+                }
+
                 var pageContent = ResolvePageContentRoot();
                 if (pageContent != null)
                 {
@@ -162,6 +169,30 @@ internal sealed class MapStashUiService
 
                 return null;
             });
+    }
+
+    private async Task<bool> VisiblePageContainsMatchQuicklyAsync(int pageNumber, string itemName, string metadata)
+    {
+        var timing = _callbacks.GetTiming();
+        var timeoutMs = Math.Max(250, timing.TabSwitchDelayMs * 6);
+        var pollDelayMs = Math.Max(15, timing.TabSwitchDelayMs);
+        var startedAt = DateTime.UtcNow;
+
+        while ((DateTime.UtcNow - startedAt).TotalMilliseconds < timeoutMs)
+        {
+            _callbacks.ThrowIfAutomationStopRequested();
+
+            var visibleItems = _callbacks.GetStash()?.VisibleStash?.VisibleInventoryItems;
+            if (visibleItems?.Count > 0)
+            {
+                return visibleItems.Cast<Element>().Any(item => _callbacks.IsMatchingVisibleMapStashItem(item, metadata, itemName));
+            }
+
+            await _callbacks.DelayAutomationAsync(pollDelayMs);
+        }
+
+        _callbacks.LogDebug($"Map stash page {pageNumber} did not expose visible inventory items within {timeoutMs}ms while probing for item='{itemName}', metadata='{metadata}'. Skipping full page-content fallback for this page.");
+        return false;
     }
 
     private async Task<bool> EnsurePageSelectedAsync(StashAutomationTargetSettings target, int pageNumber)

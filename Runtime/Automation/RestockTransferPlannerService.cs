@@ -25,6 +25,7 @@ internal sealed record RestockVisibleStashExecutionPlan(NormalInventoryItem Next
 
 internal sealed record RestockTransferPlannerCallbacks(
     Func<IList<Element>> GetVisibleMapStashPageItems,
+    Func<IList<Element>, string, IList<Element>> GetMatchingMapStashPageItems,
     Func<IList<Element>, string, Element> FindNextMatchingMapStashPageItem,
     Func<IList<Element>, string, int> CountMatchingMapStashPageItems,
     Func<string, Task<Element>> WaitForNextMatchingMapStashPageItemAsync,
@@ -138,8 +139,9 @@ internal sealed class RestockTransferPlannerService
         string sourceMetadata,
         int remainingRequestedQuantity)
     {
-        var targets = (visiblePageItems ?? (nextPageItem?.Entity != null ? [nextPageItem] : []))
-            .Where(item => item?.Entity?.Metadata.EqualsIgnoreCase(sourceMetadata) == true)
+        var matchingItems = _callbacks.GetMatchingMapStashPageItems(visiblePageItems, sourceMetadata)
+            ?? (nextPageItem?.Entity != null ? [nextPageItem] : []);
+        var targets = matchingItems
             .OrderByScreenPosition(item => item.GetClientRect())
             .Take(remainingRequestedQuantity)
             .Select(item => new RestockBatchTransferTarget(item.GetClientRect().Center, GetMapStashPageItemStackQuantity(item)))

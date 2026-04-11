@@ -8,6 +8,10 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 11, 2,
+            "Added map-stash regex restock support with a stash setting toggle and regex text field.",
+            "When enabled, restock pastes the configured regex into the map-stash search bar and only picks highlighted matching maps.",
+            "Fragment and scarab restock behavior remains unchanged."),
         new(2026, 04, 11, 1,
             "Initial public release.",
             "Added real-time Bestiary tracking with world labels, large-map markers, tracked-beast overlays, and completion messages.",
