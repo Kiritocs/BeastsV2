@@ -1134,7 +1134,7 @@ public class AutomationStatusOverlaySettings
     public RangeNode<float> YPos { get; set; } = new(4, 0, 100);
 
     [Menu("Status Duration (Seconds)", "How long a success or info status message stays visible on screen after the automation step finishes.")]
-    public RangeNode<int> StatusDurationSeconds { get; set; } = new(5, 1, 30);
+    public RangeNode<int> StatusDurationSeconds { get; set; } = new(2, 1, 30);
 
     [Menu("Error Duration (Seconds)", "How long an error message stays visible on screen when an automation step fails.")]
     public RangeNode<int> ErrorDurationSeconds { get; set; } = new(10, 1, 30);

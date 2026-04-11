@@ -143,9 +143,11 @@ public partial class Main
 
     private void LogDebug(string message)
     {
-        if (Settings?.DebugLogging?.Value != true) return;
         var line = $"[BeastsV2] {message}";
-        try { DebugWindow.LogMsg(line); } catch { }
+        if (Settings?.DebugLogging?.Value == true)
+        {
+            try { DebugWindow.LogMsg(line); } catch { }
+        }
         WriteToLogFile($"[DEBUG] {line}");
     }
 

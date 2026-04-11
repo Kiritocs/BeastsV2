@@ -374,7 +374,7 @@ public partial class Main
             "Bestiary clear",
             isBestiaryClearRunning: true,
             clearBestiaryDeleteModeOverride: true,
-            uiCleanupOptions: new AutomationUiCleanupOptions(KeepBestiary: true));
+            uiCleanupOptions: new AutomationUiCleanupOptions(KeepBestiary: true, KeepInventory: true));
     }
 
     private async Task RunBestiaryDeleteAutomationFromHotkeyAsync()
@@ -391,7 +391,7 @@ public partial class Main
             "Bestiary delete",
             isBestiaryClearRunning: true,
             clearBestiaryDeleteModeOverride: true,
-            uiCleanupOptions: new AutomationUiCleanupOptions(KeepBestiary: true));
+            uiCleanupOptions: new AutomationUiCleanupOptions(KeepBestiary: true, KeepInventory: true));
     }
 
     private async Task<int> RunBestiaryRegexItemizeBodyAsync(string regex, bool isFullSequence = false, CancellationToken cancellationToken = default)
@@ -444,7 +444,7 @@ public partial class Main
             "Full sequence",
             cancelledStatus: "Full sequence cancelled.",
             clearBestiaryDeleteModeOverride: true,
-            uiCleanupOptions: new AutomationUiCleanupOptions(KeepBestiary: true));
+            uiCleanupOptions: new AutomationUiCleanupOptions(KeepBestiary: true, KeepInventory: true));
     }
 
     #endregion

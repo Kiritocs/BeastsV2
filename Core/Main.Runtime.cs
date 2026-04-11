@@ -127,7 +127,7 @@ public partial class Main
                 _bestiaryInventoryFullStop = true;
                 UpdateAutomationStatus(message, forceLog);
             },
-            Log,
+            LogDebug,
             StashCapturedMonstersAndReturnToBestiaryAsync,
             GetVisibleBestiaryCapturedBeasts,
             WaitForBestiaryCapturedBeastsToPopulateAsync,

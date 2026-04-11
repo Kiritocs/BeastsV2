@@ -8,7 +8,10 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
-        new(2026, 04, 11, 2,
+        new(2026, 04, 12, 2,
+            "Bestiary startup now keeps inventory open during initial UI cleanup.",
+            "Verbose automation diagnostics now only show in ExileApi logs when Diagnostics: Verbose Logging is enabled, while normal info/error logs still appear and all logs still append to BeastsV2.log."),
+        new(2026, 04, 12, 1,
             "Added map-stash regex restock support with a stash setting toggle and regex text field.",
             "When enabled, restock pastes the configured regex into the map-stash search bar and only picks highlighted matching maps.",
             "Fragment and scarab restock behavior remains unchanged."),
