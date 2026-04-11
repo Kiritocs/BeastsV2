@@ -172,9 +172,22 @@ public partial class Main
         stash == null ? "stash=null"
         : $"stashVisible={stash.IsVisible}, visibleTabIndex={stash.IndexVisibleStash}, totalTabs={stash.TotalStashes}, visibleType={stash.VisibleStash?.InvType.ToString() ?? "null"}";
 
-    private static string DescribeElement(Element element) =>
-        element == null ? "element=null"
-        : $"visible={element.IsVisible}, children={element.Children?.Count ?? 0}, rect={DescribeRect(element.GetClientRect())}";
+    private static string DescribeElement(Element element)
+    {
+        if (element == null)
+        {
+            return "element=null";
+        }
+
+        try
+        {
+            return $"visible={element.IsVisible}, children={element.Children?.Count ?? 0}, rect={DescribeRect(element.GetClientRect())}";
+        }
+        catch (Exception ex)
+        {
+            return $"element=error({ex.GetType().Name}: {ex.Message})";
+        }
+    }
 
     private static string DescribeRect(RectangleF rect) =>
         $"[{rect.Left:0.#},{rect.Top:0.#}] -> [{rect.Right:0.#},{rect.Bottom:0.#}]";

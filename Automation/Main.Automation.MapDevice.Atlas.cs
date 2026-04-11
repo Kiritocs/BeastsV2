@@ -43,6 +43,11 @@ public partial class Main
             timing.StashOpenPollDelayMs,
             async () =>
             {
+                if (await WaitForBestiaryConditionAsync(() => GameController?.IngameState?.IngameUi?.Atlas?.IsVisible == true, 400, 25))
+                {
+                    return false;
+                }
+
                 ui = GameController?.IngameState?.IngameUi;
                 if (ui?.Atlas?.IsVisible == true)
                 {
@@ -84,8 +89,8 @@ public partial class Main
 
                 await WaitForBestiaryConditionAsync(
                     () => GameController?.IngameState?.IngameUi?.Atlas?.IsVisible == true,
-                    MapDeviceOpenTimeoutMs,
-                    Math.Max(10, timing.FastPollDelayMs));
+                    1000,
+                    25);
                 return false;
             },
             "Timed out opening the Map Device.");
