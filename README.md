@@ -56,12 +56,14 @@ For install and update steps, see [INSTALL.md](INSTALL.md).
 
 - Open and load the Map Device from your configured inventory loadout.
 - Optionally auto-restock missing maps and scarabs before loading the device.
+- Optionally filter map restock with a stash-search regex so only highlighted matching maps are eligible for the map slot.
 - Optionally select a specific Atlas map by name before loading the device.
 - Clear captured beasts by itemizing them in The Menagerie.
 - Delete captured beasts with a dedicated hotkey when you want cleanup instead of selling.
 - Auto-stash itemized beasts into a normal tab and optionally a separate red-beast tab.
 - List itemized beasts in a Faustus shop tab using poe.ninja prices and a configurable multiplier.
 - Run a one-key sell sequence: itemize -> list with Faustus.
+- Optionally suppress user mouse and keyboard input while automation is active so manual interference does not break runs.
 
 ### Quality-of-life extras
 
@@ -129,7 +131,10 @@ Important rules:
 - The item name match should be exact.
 - The selected stash tabs only populate when the stash is open.
 - Turn on `Auto Restock Missing Map Device Items` if you want `Prepare Map Device` to refill missing maps and scarabs automatically before loading the device.
+- Turn on `Enable Map Regex Filter` and set `Map Regex Pattern` if you want map restock to paste a stash-search regex and only pull highlighted matching maps for the map slot.
 - If automation skips items, increase `Flat Extra Delay (ms)` by 5.
+
+If you use map regex filtering, build the regex first with a tool such as `https://poe.re/#/maps`. Fragment and scarab slots are never filtered by this regex.
 
 ### 5. Configure Bestiary stash tabs
 
@@ -169,6 +174,18 @@ http://localhost:18421/
 ```
 
 Keep `Allow Network Access` off unless you intentionally want other devices on your network to reach the dashboard.
+
+If you want analytics visible in hideout, leave `Overlays -> Visibility -> Hide Analytics In Hideout` off. Counter and completion-message hideout visibility is controlled separately by `Hide Counter & Message In Hideout`.
+
+### 9. Optional: reduce accidental automation interference
+
+If you tend to bump the mouse, scroll stash, or press unrelated keys during automation, enable `Automation -> Timing -> Lock User Input During Automation`.
+
+Behavior:
+
+- Normal user mouse movement, clicks, scrolls, and unrelated key presses are suppressed while automation is running.
+- Beasts V2 still lets its own internal inputs through.
+- Automation trigger hotkeys still pass through so you can stop or replace an active run.
 
 ## How to Use the Plugin Correctly
 
@@ -276,6 +293,8 @@ Workflow:
 Correct usage rules:
 
 - If the plugin is loading fewer items than expected, first verify exact item names, then raise timing delays.
+- If `Enable Map Regex Filter` is on, only stash-highlighted maps that match `Map Regex Pattern` are eligible for the map slot.
+- If `Enable Map Regex Filter` is on but `Map Regex Pattern` is empty, restock stops with an error instead of guessing.
 
 ### 6. Loading the Map Device
 
@@ -297,6 +316,7 @@ Important behavior:
 
 - If the device already contains a clean subset of your configured loadout, the plugin only tops up missing items.
 - If `Auto Restock Missing Map Device Items` is enabled, missing configured items are pulled from stash automatically before the device is loaded.
+- If `Enable Map Regex Filter` is enabled, the stash search is applied before map restock and only highlighted maps are considered for the map slot.
 - If `Atlas Map Selection` is `open Map`, Atlas map selection is skipped.
 - The `Inventory Keybind` setting is used to close inventory before Atlas scanning when needed.
 
@@ -349,6 +369,11 @@ You can also:
 - Reset the full session.
 - Reset the map-average calculation only.
 - Save the current session to file.
+
+Hideout visibility is split:
+
+- `Overlays -> Visibility -> Hide Counter & Message In Hideout` controls the beast counter and completion message.
+- `Overlays -> Visibility -> Hide Analytics In Hideout` controls the analytics overlay.
 
 ### Web dashboard
 
@@ -434,7 +459,7 @@ Double-check before pressing `Delete Visible Beasts`.
 ## Troubleshooting
 
 If you hit an error or automation behaves unexpectedly, send the `BeastsV2.log` file from the plugin config folder when reporting the issue.
-You do not need to enable `Diagnostics: Verbose Logging` first.
+You do not need to enable `Diagnostics: Verbose Logging` first. Normal info/error logs still go to `BeastsV2.log`; that toggle only controls whether detailed step-by-step automation diagnostics are also mirrored into ExileApi logs.
 
 ### Itemize stops because inventory is full
 
@@ -473,7 +498,7 @@ You can stop a running automation by requesting another automation run or by usi
 ## Safe Operating Habits
 
 - **Clean up your inventory before running any automation.** This is very important to prevent items from being lost or misplaced.
-- Do not click around the UI while automation is actively running.
+- Do not click around the UI while automation is actively running unless you intentionally rely on `Lock User Input During Automation` to suppress your own inputs.
 - Set up every stash or merchant tab with the relevant UI open, not from memory.
 - Test new automation settings with cheap items before trusting them with a full farming loop.
 - Treat delete mode as destructive.
