@@ -8,7 +8,7 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
-        new(2026, 04, 12, 9,
+        new(2026, 04, 12, 6,
             "Analytics Web Server dashboard times now follow Windows regional time settings consistently in Map History and Saved Sessions instead of mixing 24-hour saved values with browser-local 12-hour rendering.",
             "Price Feed time text now uses the same local clock format for Prices as of and Last price update so analytics and price refresh timestamps match."),
         new(2026, 04, 12, 5,
