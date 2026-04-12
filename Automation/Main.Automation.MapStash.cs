@@ -369,6 +369,11 @@ public partial class Main
             return;
         }
 
+        ResetCachedMapStashUiState(currentCacheKey);
+    }
+
+    private void ResetCachedMapStashUiState(int currentCacheKey)
+    {
         _lastAutomationMapStashUiCacheKey = currentCacheKey;
         _lastAutomationMapStashTierGroupRoot = null;
         _lastAutomationMapStashPageTabContainer = null;
