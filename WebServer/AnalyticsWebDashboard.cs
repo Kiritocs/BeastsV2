@@ -462,19 +462,37 @@ function renderCorrelation(maps){
     const focus=S.focusBeast;
     if(!focus){I('corrMeta').textContent='No target beasts available.';I('corrBody').innerHTML='<tr><td colspan="7" class="small">No correlation data.</td></tr>';return}
     const allTargets=activeTargets().filter(name=>name!==focus);
-    const focusMaps=maps.filter(map=>hasBeastHit(map,focus));
+    const companionSet=new Set(allTargets);
+    const baselineCounts=new Map();
+    const togetherCounts=new Map();
+    const areaCountsByCompanion=new Map();
+    let focusMapCount=0;
+    maps.forEach(map=>{
+        const stats=mapStats(map);
+        const focusHit=stats.hits.has(focus);
+        if(focusHit)focusMapCount++;
+        if(stats.hits.size===0)return;
+        const area=map.areaName||map.areaHash||'Unknown';
+        stats.hits.forEach(name=>{
+            if(name===focus||!companionSet.has(name))return;
+            baselineCounts.set(name,(baselineCounts.get(name)||0)+1);
+            if(!focusHit)return;
+            togetherCounts.set(name,(togetherCounts.get(name)||0)+1);
+            const areaCounts=areaCountsByCompanion.get(name)||new Map();
+            areaCounts.set(area,(areaCounts.get(area)||0)+1);
+            areaCountsByCompanion.set(name,areaCounts);
+        });
+    });
     const totalMaps=Math.max(1,maps.length);
-    I('corrMeta').textContent=`${focusMaps.length} of ${maps.length} maps contained ${focus}. Lift > 1.00 means a companion appears more often when ${focus} is present.`;
+    I('corrMeta').textContent=`${focusMapCount} of ${maps.length} maps contained ${focus}. Lift > 1.00 means a companion appears more often when ${focus} is present.`;
     const rows=allTargets.map(name=>{
-        const together=focusMaps.filter(map=>hasBeastHit(map,name)).length;
-        const baselineMaps=maps.filter(map=>hasBeastHit(map,name)).length;
-        const coHit=focusMaps.length?together/focusMaps.length:0;
+        const together=togetherCounts.get(name)||0;
+        const baselineMaps=baselineCounts.get(name)||0;
+        const coHit=focusMapCount?together/focusMapCount:0;
         const baseline=baselineMaps/totalMaps;
         const lift=baseline>0?coHit/baseline:0;
-        const bestArea=new Map();
-        focusMaps.forEach(map=>{if(!hasBeastHit(map,name))return;const area=map.areaName||map.areaHash||'Unknown';bestArea.set(area,(bestArea.get(area)||0)+1)});
-        const topArea=[...bestArea.entries()].sort((a,b)=>b[1]-a[1])[0];
-        return {name,together,focusMaps:focusMaps.length,coHit,baseline,lift,bestArea:topArea?`${topArea[0]} (${topArea[1]})`:'--'};
+        const topArea=[...(areaCountsByCompanion.get(name)||new Map()).entries()].sort((a,b)=>b[1]-a[1])[0];
+        return {name,together,focusMaps:focusMapCount,coHit,baseline,lift,bestArea:topArea?`${topArea[0]} (${topArea[1]})`:'--'};
     }).sort((a,b)=>(b.lift-a.lift)||(b.together-a.together)||a.name.localeCompare(b.name));
     I('corrBody').innerHTML=rows.length?rows.map(r=>`<tr><td>${E(r.name)}</td><td>${r.together}</td><td>${r.focusMaps}</td><td>${(r.coHit*100).toFixed(1)}%</td><td>${(r.baseline*100).toFixed(1)}%</td><td>${r.lift>0?r.lift.toFixed(2):'--'}</td><td>${E(r.bestArea)}</td></tr>`).join(''):'<tr><td colspan="7" class="small">No companion data.</td></tr>';
 }
