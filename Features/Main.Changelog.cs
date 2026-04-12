@@ -8,11 +8,15 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 12, 3,
+            "Added optional soft input locking during automation under Automation -> Timing -> Lock User Input During Automation so user mouse movement, clicks, scrolls, and unrelated key presses are suppressed while a run is active.",
+            "Automation trigger hotkeys still pass through during the lock so an active run can still be stopped cleanly.",
+            "Soft input locking now also temporarily whitelists Beasts V2's own key and mouse events so chat travel commands, Enter presses, and regex paste actions stay reliable while the lock is active."),
         new(2026, 04, 12, 2,
             "Bestiary startup now keeps inventory open during initial UI cleanup.",
             "Verbose automation diagnostics now only show in ExileApi logs when Diagnostics: Verbose Logging is enabled, while normal info/error logs still appear and all logs still append to BeastsV2.log."),
         new(2026, 04, 12, 1,
-            "Added map-stash regex restock support with a stash setting toggle and regex text field.",
+            "Added map-stash regex restock support under Automation -> Stash & Map Device -> Enable Map Regex Filter and Map Regex Pattern.",
             "When enabled, restock pastes the configured regex into the map-stash search bar and only picks highlighted matching maps.",
             "Fragment and scarab restock behavior remains unchanged."),
         new(2026, 04, 11, 1,

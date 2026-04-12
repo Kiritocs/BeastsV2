@@ -46,6 +46,7 @@ internal sealed class AutomationRuntimeState
 {
     public string LastStatusMessage { get; set; } = string.Empty;
     public bool IsAutomationRunning { get; set; }
+    public bool IsInputLockActive { get; set; }
     public bool IsBestiaryClearRunning { get; set; }
     public bool IsAutomationStopRequested { get; set; }
     public bool? BestiaryDeleteModeOverride { get; set; }

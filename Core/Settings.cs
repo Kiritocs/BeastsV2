@@ -537,6 +537,9 @@ public class BestiaryClipboardSettings
 [Submenu(CollapsedByDefault = true)]
 public class AutomationTimingSettings
 {
+    [Menu("Lock User Input During Automation", "When enabled, Beasts V2 suppresses user mouse and keyboard input while automation runs so accidental movement, clicks, scrolls, or key presses do not interfere. Automation trigger hotkeys still pass through so you can stop an active run.")]
+    public ToggleNode LockUserInputDuringAutomation { get; set; } = new(true);
+
     [Menu("Include Server Latency In Delays", "When enabled, every shared automation delay adds the current ServerData.Latency on top of the configured base delay and flat extra delay. Enable this if your connection regularly causes actions to land too early.")]
     public ToggleNode IncludeServerLatencyInDelays { get; set; } = new(false);
 

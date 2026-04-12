@@ -89,8 +89,10 @@ public partial class Main : BaseSettingsPlugin<Settings>
             AutoSaveSessionSnapshotToFile();
         DisposeAnalyticsWebServer();
         Runtime.Shutdown();
+        _automationInputLockService?.Dispose();
         _automationRunCoordinator = null;
         _automationHotkeyTracker = null;
+        _automationInputLockService = null;
         _bestiaryAutomationWorkflow = null;
         _bestiaryUiOpenService = null;
         _bestiaryClearService = null;

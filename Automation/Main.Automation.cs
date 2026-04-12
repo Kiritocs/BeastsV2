@@ -518,6 +518,7 @@ public partial class Main
         _bestiaryAutoStashOverride = null;
         _bestiaryInventoryFullStop = false;
         _activeBestiarySearchRegex = null;
+        _isAutomationInputLocked = false;
         _lastAutomationFragmentScarabTabIndex = -1;
         _lastAutomationMapStashTierSelection = -1;
         _lastAutomationMapStashPageNumber = -1;
@@ -540,7 +541,49 @@ public partial class Main
 
     private void ReleaseAutomationModifierKeys()
     {
-        ReleaseAutomationKeys(Keys.ControlKey, Keys.LControlKey);
+        ReleaseAutomationKeys(
+            Keys.ControlKey,
+            Keys.LControlKey,
+            Keys.RControlKey,
+            Keys.ShiftKey,
+            Keys.LShiftKey,
+            Keys.RShiftKey,
+            Keys.Menu,
+            Keys.LMenu,
+            Keys.RMenu);
+    }
+
+    private void EnableAutomationInputLock()
+    {
+        if (Settings?.AutomationTiming?.LockUserInputDuringAutomation?.Value != true)
+        {
+            _isAutomationInputLocked = false;
+            return;
+        }
+
+        if (!AutomationInputLock.EnableForRun(GetAutomationInputLockPassthroughKeys()))
+        {
+            LogDebug("Automation input lock unavailable. continuing without input lock.");
+            return;
+        }
+
+        _isAutomationInputLocked = true;
+    }
+
+    private void DisableAutomationInputLock()
+    {
+        AutomationInputLock.DisableForRun();
+        _isAutomationInputLocked = false;
+    }
+
+    private IEnumerable<Keys> GetAutomationInputLockPassthroughKeys()
+    {
+        yield return Settings?.FullSequenceAutomation?.FullSequenceHotkey?.Value.Key ?? Keys.None;
+        yield return Settings?.BestiaryAutomation?.RegexItemizeHotkey?.Value.Key ?? Keys.None;
+        yield return Settings?.BestiaryAutomation?.DeleteHotkey?.Value.Key ?? Keys.None;
+        yield return Settings?.MerchantAutomation?.FaustusListHotkey?.Value.Key ?? Keys.None;
+        yield return Settings?.StashAutomation?.LoadMapDeviceHotkey?.Value.Key ?? Keys.None;
+        yield return Settings?.StashAutomation?.RestockHotkey?.Value.Key ?? Keys.None;
     }
 
     private bool IsMapStashTarget(StashAutomationTargetSettings target)

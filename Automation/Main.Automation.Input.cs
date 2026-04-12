@@ -21,6 +21,7 @@ public partial class Main
     private async Task DelayAutomationAsync(int baseDelayMs)
     {
         ThrowIfAutomationStopRequested();
+        AutomationInputLock.EnforceCursorPosition();
 
         var adjustedDelayMs = GetAutomationDelayMs(baseDelayMs);
         var remainingDelayMs = adjustedDelayMs;
@@ -29,6 +30,7 @@ public partial class Main
             var sliceDelayMs = Math.Min(remainingDelayMs, 50);
             await Task.Delay(sliceDelayMs);
             remainingDelayMs -= sliceDelayMs;
+            AutomationInputLock.EnforceCursorPosition();
             ThrowIfAutomationStopRequested();
         }
     }
@@ -343,7 +345,10 @@ public partial class Main
 
     private void SetAutomationCursorPosition(SharpDX.Vector2 position)
     {
-        Input.SetCursorPos(ToInputVector(ClampCursorPositionToGameWindow(position)));
+        var clampedPosition = ClampCursorPositionToGameWindow(position);
+        AutomationInputLock.TrackAutomationCursorPosition(clampedPosition.X, clampedPosition.Y);
+        AutomationInputLock.AllowAutomationMouseInput();
+        Input.SetCursorPos(ToInputVector(clampedPosition));
         Input.MouseMove();
     }
 
@@ -378,6 +383,7 @@ public partial class Main
         await DelayAutomationAsync(preClickDelayMs);
 
         var keys = modifierKeys ?? [];
+        AutomationInputLock.AllowAutomationKeys(keys);
         foreach (var key in keys)
         {
             if (key == Keys.None)
@@ -393,8 +399,10 @@ public partial class Main
             await DelayAutomationAsync(modifierSettleDelayMs);
         }
 
+        AutomationInputLock.AllowAutomationMouseInput();
         Input.Click(button);
 
+        AutomationInputLock.AllowAutomationKeys(keys);
         for (var index = keys.Length - 1; index >= 0; index--)
         {
             var key = keys[index];
@@ -445,6 +453,7 @@ public partial class Main
             SetAutomationCursorPosition(startPosition);
             await DelayAutomationAsync(preDragDelayMs);
 
+            AutomationInputLock.AllowAutomationMouseInput();
             Input.LeftDown();
             leftDown = true;
             await DelayAutomationAsync(holdSettleDelayMs);
@@ -456,6 +465,7 @@ public partial class Main
         {
             if (leftDown)
             {
+                AutomationInputLock.AllowAutomationMouseInput();
                 Input.LeftUp();
                 await DelayAutomationAsync(releaseSettleDelayMs);
             }
@@ -469,6 +479,7 @@ public partial class Main
             return;
         }
 
+        AutomationInputLock.AllowAutomationKeys(keys);
         foreach (var key in keys)
         {
             if (key == Keys.None)
@@ -487,6 +498,7 @@ public partial class Main
             return;
         }
 
+        AutomationInputLock.AllowAutomationKeys(keys);
         foreach (var key in keys)
         {
             if (key == Keys.None)
@@ -512,8 +524,10 @@ public partial class Main
             await DelayAutomationAsync(modifierSettleDelayMs);
         }
 
+        AutomationInputLock.AllowAutomationKeys(key);
         Input.KeyDown(key);
         await DelayAutomationAsync(Math.Max(1, holdDelayMs));
+        AutomationInputLock.AllowAutomationKeys(key);
         Input.KeyUp(key);
         ReleaseAutomationKeys(modifierKeys);
         await DelayAutomationAsync(postDelayMs);

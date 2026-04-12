@@ -9,6 +9,8 @@ internal sealed record AutomationRunCoordinatorCallbacks(
     Action BeginOverlaySession,
     Action EndOverlaySession,
     Action ResetAutomationState,
+    Action EnableAutomationInputLock,
+    Action DisableAutomationInputLock,
     Action ReleaseAutomationModifierKeys,
     Action<string> ShowAutomationError,
     Action<string, bool> UpdateAutomationStatus,
@@ -39,6 +41,7 @@ internal sealed class AutomationRunCoordinator
     public void EndRun(bool clearBestiaryDeleteModeOverride = false)
     {
         _state.IsAutomationRunning = false;
+        _state.IsInputLockActive = false;
         _state.IsBestiaryClearRunning = false;
         _state.IsAutomationStopRequested = false;
 
@@ -51,6 +54,7 @@ internal sealed class AutomationRunCoordinator
         _state.CancellationTokenSource = null;
         _callbacks.EndOverlaySession();
         _callbacks.ResetAutomationState();
+        _callbacks.DisableAutomationInputLock();
         _callbacks.ReleaseAutomationModifierKeys();
     }
 
@@ -114,6 +118,7 @@ internal sealed class AutomationRunCoordinator
             {
                 await _callbacks.PrepareAutomationUiAsync(failureLabel, uiCleanupOptions);
                 ct.ThrowIfCancellationRequested();
+                _callbacks.EnableAutomationInputLock();
                 await action(ct);
             },
             failureLabel,

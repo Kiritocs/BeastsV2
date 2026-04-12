@@ -19,6 +19,7 @@ public partial class Main
     private BeastsRuntime _runtime;
     private AutomationRunCoordinator _automationRunCoordinator;
     private AutomationHotkeyTracker _automationHotkeyTracker;
+    private AutomationInputLockService _automationInputLockService;
     private BestiaryAutomationWorkflow _bestiaryAutomationWorkflow;
     private BestiaryUiOpenService _bestiaryUiOpenService;
     private BestiaryClearService _bestiaryClearService;
@@ -63,6 +64,8 @@ public partial class Main
             BeginAutomationOverlaySession,
             EndAutomationOverlaySession,
             ResetAutomationState,
+            EnableAutomationInputLock,
+            DisableAutomationInputLock,
             ReleaseAutomationModifierKeys,
             ShowAutomationError,
             (message, forceLog) => UpdateAutomationStatus(message, forceLog),
@@ -70,6 +73,11 @@ public partial class Main
             (debugContext, options) => PrepareAutomationUiAsync(debugContext, options)));
 
     private AutomationHotkeyTracker AutomationHotkeys => _automationHotkeyTracker ??= new AutomationHotkeyTracker(Runtime.State.Automation);
+
+    private AutomationInputLockService AutomationInputLock => _automationInputLockService ??= new AutomationInputLockService(
+        Runtime.State.Automation,
+        () => Settings?.AutomationTiming?.LockUserInputDuringAutomation?.Value == true,
+        LogDebug);
 
     private BestiaryUiOpenService BestiaryUi => _bestiaryUiOpenService ??= new BestiaryUiOpenService(
         new BestiaryUiOpenCallbacks(
@@ -760,6 +768,12 @@ public partial class Main
     {
         get => Runtime.State.Automation.IsAutomationRunning;
         set => Runtime.State.Automation.IsAutomationRunning = value;
+    }
+
+    private bool _isAutomationInputLocked
+    {
+        get => Runtime.State.Automation.IsInputLockActive;
+        set => Runtime.State.Automation.IsInputLockActive = value;
     }
 
     private bool _isBestiaryClearRunning
