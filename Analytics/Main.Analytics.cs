@@ -71,52 +71,71 @@ public partial class Main
     }
 
     private static BeastTotalV2[] SubtractBeastTotals(IEnumerable<BeastTotalV2> target, IEnumerable<BeastTotalV2> loaded)
-    {
-        var totals = (target ?? [])
-            .ToDictionary(item => item.BeastName ?? string.Empty, item => new BeastTotalV2
+        => SubtractTotals(
+            target,
+            loaded,
+            item => item.BeastName,
+            item => new BeastTotalV2
             {
                 BeastName = item.BeastName ?? string.Empty,
                 CapturedCount = item.CapturedCount,
                 UnitPriceChaos = item.UnitPriceChaos,
                 CapturedChaos = item.CapturedChaos,
-            }, StringComparer.OrdinalIgnoreCase);
-
-        foreach (var item in loaded ?? [])
-        {
-            if (!totals.TryGetValue(item.BeastName ?? string.Empty, out var existing))
-                continue;
-
-            existing.CapturedCount = Math.Max(0, existing.CapturedCount - item.CapturedCount);
-            existing.CapturedChaos = Math.Max(0d, existing.CapturedChaos - item.CapturedChaos);
-            if (existing.CapturedCount == 0 && existing.CapturedChaos <= 0d)
-                totals.Remove(item.BeastName ?? string.Empty);
-        }
-
-        return totals.Values.OrderBy(x => x.BeastName, StringComparer.OrdinalIgnoreCase).ToArray();
-    }
+            },
+            (existing, item) =>
+            {
+                existing.CapturedCount = Math.Max(0, existing.CapturedCount - item.CapturedCount);
+                existing.CapturedChaos = Math.Max(0d, existing.CapturedChaos - item.CapturedChaos);
+            },
+            existing => existing.CapturedCount == 0 && existing.CapturedChaos <= 0d);
 
     private static FamilyTotalV2[] SubtractFamilyTotals(IEnumerable<FamilyTotalV2> target, IEnumerable<FamilyTotalV2> loaded)
-    {
-        var totals = (target ?? [])
-            .ToDictionary(item => item.FamilyName ?? string.Empty, item => new FamilyTotalV2
+        => SubtractTotals(
+            target,
+            loaded,
+            item => item.FamilyName,
+            item => new FamilyTotalV2
             {
                 FamilyName = item.FamilyName ?? string.Empty,
                 CapturedCount = item.CapturedCount,
                 CapturedChaos = item.CapturedChaos,
-            }, StringComparer.OrdinalIgnoreCase);
+            },
+            (existing, item) =>
+            {
+                existing.CapturedCount = Math.Max(0, existing.CapturedCount - item.CapturedCount);
+                existing.CapturedChaos = Math.Max(0d, existing.CapturedChaos - item.CapturedChaos);
+            },
+            existing => existing.CapturedCount == 0 && existing.CapturedChaos <= 0d);
+
+    private static TTotal[] SubtractTotals<TTotal>(
+        IEnumerable<TTotal> target,
+        IEnumerable<TTotal> loaded,
+        Func<TTotal, string> keySelector,
+        Func<TTotal, TTotal> clone,
+        Action<TTotal, TTotal> subtract,
+        Func<TTotal, bool> shouldRemove)
+    {
+        var totals = new Dictionary<string, TTotal>(AnalyticsTotalsComparer);
+        foreach (var item in target ?? [])
+        {
+            totals.Add(keySelector(item) ?? string.Empty, clone(item));
+        }
 
         foreach (var item in loaded ?? [])
         {
-            if (!totals.TryGetValue(item.FamilyName ?? string.Empty, out var existing))
+            var key = keySelector(item) ?? string.Empty;
+            if (!totals.TryGetValue(key, out var existing))
                 continue;
 
-            existing.CapturedCount = Math.Max(0, existing.CapturedCount - item.CapturedCount);
-            existing.CapturedChaos = Math.Max(0d, existing.CapturedChaos - item.CapturedChaos);
-            if (existing.CapturedCount == 0 && existing.CapturedChaos <= 0d)
-                totals.Remove(item.FamilyName ?? string.Empty);
+            subtract(existing, item);
+            if (shouldRemove(existing))
+                totals.Remove(key);
         }
 
-        return totals.Values.OrderBy(x => x.FamilyName, StringComparer.OrdinalIgnoreCase).ToArray();
+        return totals
+            .OrderBy(entry => entry.Key, AnalyticsTotalsComparer)
+            .Select(entry => entry.Value)
+            .ToArray();
     }
 
     private static MapAnalyticsRecord CloneMapRecord(MapAnalyticsRecord source)
