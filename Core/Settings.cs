@@ -433,7 +433,7 @@ public class AnalyticsWindowSettings
     [Menu("Show", "Show or hide the analytics window.")]
     public ToggleNode Show { get; set; } = new(true);
 
-    [Menu("Reset Session", "Reset all session counters and timers to zero, including beast counts, session duration, and map averages. Hold Shift and click to confirm.")]
+    [Menu("Reset Session", "Reset all session counters and timers to zero, including beast counts, session duration, map averages, and any loaded saved sessions. Starts a fresh analytics session. Hold Shift and click to confirm.")]
     public ButtonNode ResetSession { get; set; } = new();
 
     [Menu("Reset Map Average", "Reset only the map average tracking (completed map count and total map duration) without affecting session beast counts or session time. Hold Shift and click to confirm.")]

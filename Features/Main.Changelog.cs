@@ -9,8 +9,10 @@ public partial class Main
     private static readonly ChangelogEntry[] Changelog =
     [
         new(2026, 04, 12, 6,
-            "Analytics Web Server dashboard times now follow Windows regional time settings consistently in Map History and Saved Sessions instead of mixing 24-hour saved values with browser-local 12-hour rendering.",
-            "Price Feed time text now uses the same local clock format for Prices as of and Last price update so analytics and price refresh timestamps match."),
+            "Analytics Web Server -> Map History, Saved Sessions, and Price Feed times now all follow Windows regional time settings so analytics timestamps stay consistent everywhere.",
+            "Analytics Web Server -> Saved Sessions now keeps SessionId stable for current plugin run, gives each saved file its own SaveId for load/unload/delete/export/compare actions, and requires explicit SaveId metadata.",
+            "Analytics Web Server -> Saved Sessions autosaves now replace older matching autosaves using map history plus stable summary counts, so map-complete and plugin-close autosaves no longer stack duplicate data when only live prices changed.",
+            "Analytics -> Reset Session now starts fresh analytics SessionId and unloads any loaded saved sessions so reset returns tracker to clean new run and Saved Sessions matches live in-memory totals immediately."),
         new(2026, 04, 12, 5,
             "Counter Window -> Tracked Completion Message now finishes when Einhar quest text shows Mission Complete even if the quest progress line was never parsed first.",
             "Tracked completion now stays visible after plugin reloads inside an already-finished Einhar map and still stays visible when re-entering the same completed instance."),
