@@ -52,6 +52,7 @@ public partial class Main
     {
         if (!ImGui.GetIO().KeyShift) return;
 
+        _currentAnalyticsSessionId = Guid.NewGuid().ToString("N");
         _sessionStartUtc = DateTime.UtcNow;
         _sessionPausedDuration = TimeSpan.Zero;
         _loadedSessionsDuration = TimeSpan.Zero;
@@ -63,6 +64,8 @@ public partial class Main
         _currentMapElapsed = TimeSpan.Zero;
         _currentMapStartUtc = _isCurrentAreaTrackable ? DateTime.UtcNow : null;
         _mapHistory.Clear();
+        _loadedSaveIds.Clear();
+        _loadedSaveCacheById.Clear();
         ResetCurrentMapAnalytics();
 
         foreach (var tracked in AllRedBeasts)

@@ -374,6 +374,7 @@ public partial class Main
             () => _isCurrentAreaTrackable,
             ComputePerMapCostChaos,
             BuildSessionTotals,
+            () => _currentAnalyticsSessionId,
             GetTotalSessionTime,
             () => _completedMapCount,
             () => _sessionBeastsFound,

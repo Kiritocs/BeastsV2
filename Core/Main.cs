@@ -63,6 +63,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private int _rareBeastsFound;
     private int _sessionBeastsFound;
     private int _totalRedBeastsSession;
+    private string _currentAnalyticsSessionId = string.Empty;
     private bool _wasBestiaryTabVisible;
     private bool _isBestiaryClipboardPasteRunning;
 
@@ -76,6 +77,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         Core.Initialize(this);
 
         var now = DateTime.UtcNow;
+        _currentAnalyticsSessionId = Guid.NewGuid().ToString("N");
         Runtime.Initialize(now, CreateSettingsBindingTargets());
 
         InitializeCurrentAreaTracking(now);
