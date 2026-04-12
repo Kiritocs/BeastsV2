@@ -90,6 +90,7 @@ public sealed class MapListItemV2
 
 public sealed class SessionSaveListItemV2
 {
+    public string SaveId { get; set; } = string.Empty;
     public string SessionId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public DateTime SavedAtUtc { get; set; }
@@ -117,8 +118,8 @@ public sealed class CreateSessionSaveRequestV2
 
 public sealed class CompareSessionsRequestV2
 {
-    public string SessionAId { get; set; } = string.Empty;
-    public string SessionBId { get; set; } = string.Empty;
+    public string SaveAId { get; set; } = string.Empty;
+    public string SaveBId { get; set; } = string.Empty;
     public bool MatchAreas { get; set; }
     public int TrimPercent { get; set; }
     public int MinMaps { get; set; } = 30;

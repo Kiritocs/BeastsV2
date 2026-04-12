@@ -574,12 +574,12 @@ function savesRender(){
     const body=I('saveBody');
     const saves=S.saves||[];
     if(!saves.length){body.innerHTML='<tr><td colspan="4" class="small">No saved sessions yet.</td></tr>';syncSaveSelectors();return}
-    body.innerHTML=saves.map(x=>{const tags=[x.tags?.strategy,x.tags?.scarab,x.tags?.atlas,x.tags?.mapPool].filter(Boolean).join(' | '),label=x.name||x.sessionId,auto=x.isAutoSave?'<span class="badge" style="padding:2px 6px">AutoSave</span>':'',loaded=x.alreadyLoaded?'<span class="badge live" style="padding:2px 6px">Loaded</span>':'';return `<tr><td>${E(label)}<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${auto}${loaded}</div><div class="small">${E(tags||'no tags')}</div></td><td>${x.summary?.mapsCompleted||0}</td><td>${E(LDT(x.savedAtDisplay,x.savedAtUtc))}</td><td><div style="display:flex;gap:8px;flex-wrap:wrap">${x.alreadyLoaded?`<button onclick="unloadSave('${x.sessionId}')">Unload</button>`:`<button onclick="loadSave('${x.sessionId}')">Load</button>`}<button onclick="exportSave('${x.sessionId}')">JSON</button><button class="danger" onclick="deleteSave('${x.sessionId}')">Delete</button></div></td></tr>`}).join('');
+    body.innerHTML=saves.map(x=>{const tags=[x.tags?.strategy,x.tags?.scarab,x.tags?.atlas,x.tags?.mapPool].filter(Boolean).join(' | '),label=x.name||x.saveId,auto=x.isAutoSave?'<span class="badge" style="padding:2px 6px">AutoSave</span>':'',loaded=x.alreadyLoaded?'<span class="badge live" style="padding:2px 6px">Loaded</span>':'';return `<tr><td>${E(label)}<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${auto}${loaded}</div><div class="small">${E(tags||'no tags')}</div></td><td>${x.summary?.mapsCompleted||0}</td><td>${E(LDT(x.savedAtDisplay,x.savedAtUtc))}</td><td><div style="display:flex;gap:8px;flex-wrap:wrap">${x.alreadyLoaded?`<button onclick="unloadSave('${x.saveId}')">Unload</button>`:`<button onclick="loadSave('${x.saveId}')">Load</button>`}<button onclick="exportSave('${x.saveId}')">JSON</button><button class="danger" onclick="deleteSave('${x.saveId}')">Delete</button></div></td></tr>`}).join('');
     syncSaveSelectors();
 }
 
 function syncSaveSelectors(){
-    const options=S.saves.map(x=>`<option value="${x.sessionId}">${E((x.name||x.sessionId)+(x.isAutoSave?' [AutoSave]':''))}</option>`).join('');
+    const options=S.saves.map(x=>`<option value="${x.saveId}">${E((x.name||x.saveId)+(x.isAutoSave?' [AutoSave]':''))}</option>`).join('');
     I('abA').innerHTML=`<option value="">Session A</option>${options}`;
     I('abB').innerHTML=`<option value="">Session B</option>${options}`;
 }
@@ -604,8 +604,8 @@ function localDateStamp(d=new Date()){const y=d.getFullYear(),m=`${d.getMonth()+
 async function compare(){
     I('abErr').style.display='none';
     I('abBody').innerHTML='';
-    const p={sessionAId:I('abA').value,sessionBId:I('abB').value,matchAreas:I('abMatch').checked,trimPercent:Number(I('abTrim').value||0),minMaps:Number(I('abMin').value||30)};
-    if(!p.sessionAId||!p.sessionBId){I('abErr').style.display='block';I('abErr').textContent='Select Session A and Session B.';return}
+    const p={saveAId:I('abA').value,saveBId:I('abB').value,matchAreas:I('abMatch').checked,trimPercent:Number(I('abTrim').value||0),minMaps:Number(I('abMin').value||30)};
+    if(!p.saveAId||!p.saveBId){I('abErr').style.display='block';I('abErr').textContent='Select Session A and Session B.';return}
     const r=await api('/api/session/compare',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
     I('abMeta').textContent=`${r.message} ${r.recommendation||''}`;
     const rows=[['Maps',r.sessionA.count,r.sessionB.count,r.delta.count,false],['Net / Map',r.sessionA.netPerMapChaos,r.sessionB.netPerMapChaos,r.delta.netPerMapChaos,true],['Net / Min',r.sessionA.netPerMinuteChaos,r.sessionB.netPerMinuteChaos,r.delta.netPerMinuteChaos,true],['Captured / Min',r.sessionA.capturedPerMinuteChaos,r.sessionB.capturedPerMinuteChaos,r.delta.capturedPerMinuteChaos,true],['Cost / Map',r.sessionA.costPerMapChaos,r.sessionB.costPerMapChaos,r.delta.costPerMapChaos,true],['Reds / Map',r.sessionA.redsPerMap,r.sessionB.redsPerMap,r.delta.redsPerMap,false]];

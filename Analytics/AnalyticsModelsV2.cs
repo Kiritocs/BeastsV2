@@ -82,6 +82,7 @@ public sealed class FamilyTotalV2
 public sealed class SavedSessionDataV2
 {
     public int SchemaVersion { get; set; } = 2;
+    public string SaveId { get; set; } = Guid.NewGuid().ToString("N");
     public string SessionId { get; set; } = Guid.NewGuid().ToString("N");
     public DateTime SavedAtUtc { get; set; }
     public bool IsAutoSave { get; set; }

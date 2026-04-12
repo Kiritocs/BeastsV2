@@ -11,6 +11,7 @@ internal sealed record AnalyticsSessionAggregationCallbacks(
     Func<bool> GetIsCurrentAreaTrackable,
     Func<double> ComputePerMapCostChaos,
     Func<bool, (BeastTotalV2[] BeastTotals, FamilyTotalV2[] FamilyTotals)> BuildSessionTotals,
+    Func<string> GetCurrentSessionId,
     Func<DateTime, TimeSpan> GetTotalSessionTime,
     Func<int> GetCompletedMapCount,
     Func<int> GetSessionBeastsFound,
@@ -43,6 +44,9 @@ internal sealed class AnalyticsSessionAggregationService
     public SavedSessionDataV2 BuildSavedSessionData(DateTime now, CreateSessionSaveRequestV2 request)
     {
         var mapHistory = BuildOrderedMapHistory(out var completedCaptured, out var completedCost);
+        var sessionId = _callbacks.GetCurrentSessionId()?.Trim();
+        if (string.IsNullOrWhiteSpace(sessionId))
+            sessionId = Guid.NewGuid().ToString("N");
 
         var currentCaptured = _callbacks.ComputeCurrentMapCapturedChaos();
         var currentCost = _callbacks.GetIsCurrentAreaTrackable() ? _callbacks.ComputePerMapCostChaos() : 0d;
@@ -52,7 +56,8 @@ internal sealed class AnalyticsSessionAggregationService
         return new SavedSessionDataV2
         {
             SchemaVersion = 2,
-            SessionId = Guid.NewGuid().ToString("N"),
+            SaveId = Guid.NewGuid().ToString("N"),
+            SessionId = sessionId,
             SavedAtUtc = now,
             IsAutoSave = request?.IsAutoSave == true,
             Name = AnalyticsEngineV2.BuildSessionDisplayName(request?.Name, now, request?.IsAutoSave == true),

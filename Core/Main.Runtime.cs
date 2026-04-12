@@ -306,8 +306,8 @@ public partial class Main
             BuildCurrentLiveSessionDataForDuplicateCheck,
             () => _sessionStore,
             () => _autoSaveSessionStore,
-            () => _loadedSessionIds,
-            () => _loadedSessionCacheById,
+            () => _loadedSaveIds,
+            () => _loadedSaveCacheById,
             ApplyLoadedSessionAnalytics,
             RemoveLoadedSessionAnalytics));
 

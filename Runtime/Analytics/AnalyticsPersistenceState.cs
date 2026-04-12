@@ -6,9 +6,9 @@ namespace BeastsV2.Runtime.Analytics;
 
 internal sealed class AnalyticsPersistenceState
 {
-    public HashSet<string> LoadedSessionIds { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public HashSet<string> LoadedSaveIds { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    public Dictionary<string, SavedSessionDataV2> LoadedSessionCacheById { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, SavedSessionDataV2> LoadedSaveCacheById { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public SessionStoreV2 SessionStore { get; } = new(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config", "BeastsV2Sessions"));
 

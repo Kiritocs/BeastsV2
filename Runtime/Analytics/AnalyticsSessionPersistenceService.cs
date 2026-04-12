@@ -9,8 +9,8 @@ internal sealed record AnalyticsSessionPersistenceCallbacks(
     Func<DateTime, SavedSessionDataV2> BuildCurrentLiveSessionData,
     Func<SessionStoreV2> GetSessionStore,
     Func<SessionStoreV2> GetAutoSaveSessionStore,
-    Func<HashSet<string>> GetLoadedSessionIds,
-    Func<Dictionary<string, SavedSessionDataV2>> GetLoadedSessionCacheById,
+    Func<HashSet<string>> GetLoadedSaveIds,
+    Func<Dictionary<string, SavedSessionDataV2>> GetLoadedSaveCacheById,
     Action<SavedSessionDataV2> ApplyLoadedSessionData,
     Action<SavedSessionDataV2> RemoveLoadedSessionData);
 
@@ -40,12 +40,13 @@ internal sealed class AnalyticsSessionPersistenceService
     public IReadOnlyList<SessionSaveListItemV2> ListSavedSessions()
     {
         var items = new List<SessionSaveListItemV2>();
-        var loadedSessionIds = _callbacks.GetLoadedSessionIds();
+        var loadedSaveIds = _callbacks.GetLoadedSaveIds();
         foreach (var entry in ReadAllSessions())
         {
             var data = entry.Data;
             items.Add(new SessionSaveListItemV2
             {
+                SaveId = data.SaveId,
                 SessionId = data.SessionId,
                 Name = data.Name ?? string.Empty,
                 SavedAtUtc = data.SavedAtUtc,
@@ -53,16 +54,16 @@ internal sealed class AnalyticsSessionPersistenceService
                 IsAutoSave = data.IsAutoSave,
                 Tags = data.Tags ?? new SavedSessionTagsV2(),
                 Summary = data.Summary ?? new SavedSessionSummaryV2(),
-                AlreadyLoaded = loadedSessionIds.Contains(data.SessionId),
+                AlreadyLoaded = loadedSaveIds.Contains(data.SaveId),
             });
         }
 
         return items;
     }
 
-    public SessionSaveDetailV2 GetSavedSessionData(string sessionId)
+    public SessionSaveDetailV2 GetSavedSessionData(string saveId)
     {
-        var entry = ReadBySessionId(sessionId);
+        var entry = ReadBySaveId(saveId);
         return entry?.Data == null ? null : new SessionSaveDetailV2 { Session = entry.Data };
     }
 
@@ -74,20 +75,20 @@ internal sealed class AnalyticsSessionPersistenceService
             : ApiActionResponseV2.Fail("save_failed", "Failed to save session.");
     }
 
-    public ApiActionResponseV2 LoadSavedSession(string sessionId)
+    public ApiActionResponseV2 LoadSavedSession(string saveId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (string.IsNullOrWhiteSpace(saveId))
         {
-            return ApiActionResponseV2.Fail("invalid_id", "sessionId is required.");
+            return ApiActionResponseV2.Fail("invalid_id", "saveId is required.");
         }
 
-        var loadedSessionIds = _callbacks.GetLoadedSessionIds();
-        if (loadedSessionIds.Contains(sessionId))
+        var loadedSaveIds = _callbacks.GetLoadedSaveIds();
+        if (loadedSaveIds.Contains(saveId))
         {
             return ApiActionResponseV2.Fail("duplicate", "Session is already loaded.");
         }
 
-        var entry = ReadBySessionId(sessionId);
+        var entry = ReadBySaveId(saveId);
         if (entry?.Data == null)
         {
             return ApiActionResponseV2.Fail("not_found", "Session not found.");
@@ -103,69 +104,69 @@ internal sealed class AnalyticsSessionPersistenceService
 
         _callbacks.ApplyLoadedSessionData(data);
 
-        loadedSessionIds.Add(data.SessionId);
-        _callbacks.GetLoadedSessionCacheById()[data.SessionId] = data;
+        loadedSaveIds.Add(data.SaveId);
+        _callbacks.GetLoadedSaveCacheById()[data.SaveId] = data;
 
         return ApiActionResponseV2.Ok("loaded", "Session loaded.");
     }
 
-    public ApiActionResponseV2 UnloadSavedSession(string sessionId)
+    public ApiActionResponseV2 UnloadSavedSession(string saveId)
     {
-        var loadedSessionIds = _callbacks.GetLoadedSessionIds();
-        if (!loadedSessionIds.Contains(sessionId))
+        var loadedSaveIds = _callbacks.GetLoadedSaveIds();
+        if (!loadedSaveIds.Contains(saveId))
         {
             return ApiActionResponseV2.Fail("not_loaded", "Session is not loaded.");
         }
 
-        var cache = _callbacks.GetLoadedSessionCacheById();
-        if (!cache.TryGetValue(sessionId, out var data))
+        var cache = _callbacks.GetLoadedSaveCacheById();
+        if (!cache.TryGetValue(saveId, out var data))
         {
             return ApiActionResponseV2.Fail("missing_cache", "Loaded session cache is missing.");
         }
 
         _callbacks.RemoveLoadedSessionData(data);
 
-        loadedSessionIds.Remove(sessionId);
-        cache.Remove(sessionId);
+        loadedSaveIds.Remove(saveId);
+        cache.Remove(saveId);
 
         return ApiActionResponseV2.Ok("unloaded", "Session unloaded.");
     }
 
-    public ApiActionResponseV2 DeleteSavedSession(string sessionId)
+    public ApiActionResponseV2 DeleteSavedSession(string saveId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId))
+        if (string.IsNullOrWhiteSpace(saveId))
         {
-            return ApiActionResponseV2.Fail("invalid_id", "sessionId is required.");
+            return ApiActionResponseV2.Fail("invalid_id", "saveId is required.");
         }
 
-        if (_callbacks.GetLoadedSessionIds().Contains(sessionId))
+        if (_callbacks.GetLoadedSaveIds().Contains(saveId))
         {
-            var unload = UnloadSavedSession(sessionId);
+            var unload = UnloadSavedSession(saveId);
             if (!unload.Success)
             {
                 return unload;
             }
         }
 
-        return DeleteBySessionId(sessionId)
+        return DeleteBySaveId(saveId)
             ? ApiActionResponseV2.Ok("deleted", "Session deleted.")
             : ApiActionResponseV2.Fail("delete_failed", "Failed to delete session.");
     }
 
     public CompareSessionsResponseV2 CompareSavedSessions(CompareSessionsRequestV2 request)
     {
-        if (request == null || string.IsNullOrWhiteSpace(request.SessionAId) || string.IsNullOrWhiteSpace(request.SessionBId))
+        if (request == null || string.IsNullOrWhiteSpace(request.SaveAId) || string.IsNullOrWhiteSpace(request.SaveBId))
         {
             return new CompareSessionsResponseV2
             {
                 Success = false,
                 Code = "invalid_request",
-                Message = "sessionAId and sessionBId are required.",
+                Message = "saveAId and saveBId are required.",
             };
         }
 
-        var a = ReadBySessionId(request.SessionAId)?.Data;
-        var b = ReadBySessionId(request.SessionBId)?.Data;
+        var a = ReadBySaveId(request.SaveAId)?.Data;
+        var b = ReadBySaveId(request.SaveBId)?.Data;
         return AnalyticsEngineV2.CompareSessions(a, b, request);
     }
 
@@ -188,16 +189,16 @@ internal sealed class AnalyticsSessionPersistenceService
     private IReadOnlyList<SessionFileEntryV2> ReadAllSessions()
         => GetAllStores()
             .SelectMany(store => store.ReadAll())
-            .GroupBy(entry => entry.Data.SessionId, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(entry => entry.Data.SaveId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderByDescending(entry => entry.Data.SavedAtUtc).First())
             .OrderByDescending(entry => entry.Data.SavedAtUtc)
             .ToArray();
 
-    private SessionFileEntryV2 ReadBySessionId(string sessionId)
+    private SessionFileEntryV2 ReadBySaveId(string saveId)
     {
         foreach (var store in GetAllStores())
         {
-            var entry = store.ReadBySessionId(sessionId);
+            var entry = store.ReadBySaveId(saveId);
             if (entry != null)
                 return entry;
         }
@@ -224,7 +225,7 @@ internal sealed class AnalyticsSessionPersistenceService
             return ApiActionResponseV2.Fail("matches_current", "Session matches current live analytics state.");
         }
 
-        foreach (var loaded in _callbacks.GetLoadedSessionCacheById().Values)
+        foreach (var loaded in _callbacks.GetLoadedSaveCacheById().Values)
         {
             if (loaded == null)
                 continue;

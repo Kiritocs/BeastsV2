@@ -32,6 +32,9 @@ internal sealed class SessionStoreV2
 
         try
         {
+            if (!IsValidIdentifier(session.SaveId) || !IsValidIdentifier(session.SessionId))
+                return false;
+
             Directory.CreateDirectory(_directory);
 
             var slug = AnalyticsEngineV2.BuildSlug(nameHint);
@@ -75,7 +78,7 @@ internal sealed class SessionStoreV2
 
     public SessionFileEntryV2 ReadBySessionId(string sessionId)
     {
-        if (!IsValidSessionId(sessionId))
+        if (!IsValidIdentifier(sessionId))
             return null;
 
         try
@@ -99,12 +102,60 @@ internal sealed class SessionStoreV2
 
     public bool DeleteBySessionId(string sessionId)
     {
-        if (!IsValidSessionId(sessionId))
+        if (!IsValidIdentifier(sessionId))
             return false;
 
         try
         {
             var entry = ReadBySessionId(sessionId);
+            if (entry == null)
+                return false;
+
+            var path = Path.Combine(_directory, entry.FileName);
+            if (!File.Exists(path))
+                return false;
+
+            File.Delete(path);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public SessionFileEntryV2 ReadBySaveId(string saveId)
+    {
+        if (!IsValidIdentifier(saveId))
+            return null;
+
+        try
+        {
+            foreach (var file in EnumerateSessionFiles())
+            {
+                var entry = ReadByPath(file);
+                if (entry?.Data?.SaveId != null &&
+                    entry.Data.SaveId.EqualsIgnoreCase(saveId))
+                {
+                    return entry;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    public bool DeleteBySaveId(string saveId)
+    {
+        if (!IsValidIdentifier(saveId))
+            return false;
+
+        try
+        {
+            var entry = ReadBySaveId(saveId);
             if (entry == null)
                 return false;
 
@@ -128,7 +179,7 @@ internal sealed class SessionStoreV2
             var fileName = Path.GetFileName(path);
             var json = File.ReadAllText(path);
             var data = JsonSerializer.Deserialize<SavedSessionDataV2>(json, _jsonOptions);
-            if (data == null || data.SchemaVersion != 2 || !IsValidSessionId(data.SessionId))
+            if (data == null || data.SchemaVersion != 2 || !IsValidIdentifier(data.SaveId) || !IsValidIdentifier(data.SessionId))
                 return null;
 
             return new SessionFileEntryV2(fileName, data);
@@ -146,7 +197,7 @@ internal sealed class SessionStoreV2
             .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static bool IsValidSessionId(string value)
+    private static bool IsValidIdentifier(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
             return false;

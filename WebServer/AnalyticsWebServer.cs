@@ -229,11 +229,11 @@ internal sealed class AnalyticsWebServer
                 segments[1].EqualsIgnoreCase("session") &&
                 segments[2].EqualsIgnoreCase("saves"))
             {
-                var sessionId = WebUtility.UrlDecode(segments[3] ?? string.Empty);
+                var saveId = WebUtility.UrlDecode(segments[3] ?? string.Empty);
 
                 if (segments.Length == 4 && request.HttpMethod == "GET")
                 {
-                    var detail = _getSave(sessionId);
+                    var detail = _getSave(saveId);
                     if (detail?.Session == null)
                     {
                         await WriteErrorAsync(response, 404, "not_found", "Session not found.");
@@ -246,19 +246,19 @@ internal sealed class AnalyticsWebServer
 
                 if (segments.Length == 5 && request.HttpMethod == "POST" && segments[4].EqualsIgnoreCase("load"))
                 {
-                    await WriteActionResponseAsync(response, _loadSave(sessionId));
+                    await WriteActionResponseAsync(response, _loadSave(saveId));
                     return;
                 }
 
                 if (segments.Length == 5 && request.HttpMethod == "POST" && segments[4].EqualsIgnoreCase("unload"))
                 {
-                    await WriteActionResponseAsync(response, _unloadSave(sessionId));
+                    await WriteActionResponseAsync(response, _unloadSave(saveId));
                     return;
                 }
 
                 if (segments.Length == 4 && request.HttpMethod == "DELETE")
                 {
-                    await WriteActionResponseAsync(response, _deleteSave(sessionId));
+                    await WriteActionResponseAsync(response, _deleteSave(saveId));
                     return;
                 }
             }

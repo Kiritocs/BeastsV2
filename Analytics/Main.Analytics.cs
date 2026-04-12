@@ -10,8 +10,8 @@ public partial class Main
 {
     private static readonly StringComparer AnalyticsTotalsComparer = StringComparer.OrdinalIgnoreCase;
 
-    private HashSet<string> _loadedSessionIds => AnalyticsPersistenceRuntime.LoadedSessionIds;
-    private Dictionary<string, SavedSessionDataV2> _loadedSessionCacheById => AnalyticsPersistenceRuntime.LoadedSessionCacheById;
+    private HashSet<string> _loadedSaveIds => AnalyticsPersistenceRuntime.LoadedSaveIds;
+    private Dictionary<string, SavedSessionDataV2> _loadedSaveCacheById => AnalyticsPersistenceRuntime.LoadedSaveCacheById;
     private SessionStoreV2 _sessionStore => AnalyticsPersistenceRuntime.SessionStore;
     private SessionStoreV2 _autoSaveSessionStore => AnalyticsPersistenceRuntime.AutoSaveSessionStore;
 
@@ -33,9 +33,10 @@ public partial class Main
         if (snapshot == null)
             return null;
 
-        foreach (var loaded in _loadedSessionCacheById.Values)
+        foreach (var loaded in _loadedSaveCacheById.Values)
             SubtractLoadedSessionData(snapshot, loaded);
 
+        snapshot.SaveId = string.Empty;
         snapshot.SessionId = string.Empty;
         snapshot.Name = string.Empty;
         snapshot.IsAutoSave = false;
@@ -311,15 +312,15 @@ public partial class Main
 
     private IReadOnlyList<SessionSaveListItemV2> ListSavedSessionsV2() => AnalyticsSessions.ListSavedSessions();
 
-    private SessionSaveDetailV2 GetSavedSessionDataV2(string sessionId) => AnalyticsSessions.GetSavedSessionData(sessionId);
+    private SessionSaveDetailV2 GetSavedSessionDataV2(string saveId) => AnalyticsSessions.GetSavedSessionData(saveId);
 
     private ApiActionResponseV2 SaveSessionSnapshotToFileV2(CreateSessionSaveRequestV2 request) => AnalyticsSessions.SaveSessionSnapshotV2(request);
 
-    private ApiActionResponseV2 LoadSavedSessionV2(string sessionId) => AnalyticsSessions.LoadSavedSession(sessionId);
+    private ApiActionResponseV2 LoadSavedSessionV2(string saveId) => AnalyticsSessions.LoadSavedSession(saveId);
 
-    private ApiActionResponseV2 UnloadSavedSessionV2(string sessionId) => AnalyticsSessions.UnloadSavedSession(sessionId);
+    private ApiActionResponseV2 UnloadSavedSessionV2(string saveId) => AnalyticsSessions.UnloadSavedSession(saveId);
 
-    private ApiActionResponseV2 DeleteSavedSessionV2(string sessionId) => AnalyticsSessions.DeleteSavedSession(sessionId);
+    private ApiActionResponseV2 DeleteSavedSessionV2(string saveId) => AnalyticsSessions.DeleteSavedSession(saveId);
 
     private CompareSessionsResponseV2 CompareSavedSessionsV2(CompareSessionsRequestV2 request) => AnalyticsSessions.CompareSavedSessions(request);
 
