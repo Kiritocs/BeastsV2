@@ -29,7 +29,14 @@ internal sealed class AnalyticsSessionPersistenceService
         {
             var now = DateTime.UtcNow;
             var data = _callbacks.BuildSavedSessionData(now, request);
-            return GetStoreForRequest(request).Save(data, data.Name, out _);
+            var store = GetStoreForRequest(request);
+            if (!store.Save(data, data.Name, out _))
+                return false;
+
+            if (request?.IsAutoSave == true)
+                DeleteEquivalentAutoSaves(store, data);
+
+            return true;
         }
         catch
         {
@@ -206,15 +213,33 @@ internal sealed class AnalyticsSessionPersistenceService
         return null;
     }
 
-    private bool DeleteBySessionId(string sessionId)
+    private bool DeleteBySaveId(string saveId)
     {
         foreach (var store in GetAllStores())
         {
-            if (store.DeleteBySessionId(sessionId))
+            if (store.DeleteBySaveId(saveId))
                 return true;
         }
 
         return false;
+    }
+
+    private static void DeleteEquivalentAutoSaves(SessionStoreV2 store, SavedSessionDataV2 saved)
+    {
+        if (store == null || saved == null)
+            return;
+
+        var matchingSaveIds = store.ReadAll()
+            .Where(entry => entry?.Data != null)
+            .Where(entry => !string.Equals(entry.Data.SaveId, saved.SaveId, StringComparison.OrdinalIgnoreCase))
+            .Where(entry => AreEquivalentAutoSaveContents(entry.Data, saved))
+            .Select(entry => entry.Data.SaveId)
+            .Where(saveId => !string.IsNullOrWhiteSpace(saveId))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        foreach (var saveId in matchingSaveIds)
+            store.DeleteBySaveId(saveId);
     }
 
     private ApiActionResponseV2 ValidateLoadAgainstExistingSessions(DateTime now, SavedSessionDataV2 candidate)
@@ -258,6 +283,23 @@ internal sealed class AnalyticsSessionPersistenceService
             .Select(map => map?.MapId)
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Any(aIds.Contains);
+    }
+
+    private static bool AreEquivalentAutoSaveContents(SavedSessionDataV2 a, SavedSessionDataV2 b)
+    {
+        if (a == null || b == null)
+            return false;
+
+        var aSummary = a.Summary ?? new SavedSessionSummaryV2();
+        var bSummary = b.Summary ?? new SavedSessionSummaryV2();
+        if (aSummary.MapsCompleted != bSummary.MapsCompleted ||
+            aSummary.BeastsFound != bSummary.BeastsFound ||
+            aSummary.RedBeastsFound != bSummary.RedBeastsFound)
+        {
+            return false;
+        }
+
+        return SequenceEqualByKey(a.MapHistory, b.MapHistory, x => x?.MapId, MapRecordsEquivalent);
     }
 
     private static bool AreEquivalentSessionContents(SavedSessionDataV2 a, SavedSessionDataV2 b)
