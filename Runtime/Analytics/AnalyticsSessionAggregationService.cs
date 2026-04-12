@@ -42,15 +42,10 @@ internal sealed class AnalyticsSessionAggregationService
 
     public SavedSessionDataV2 BuildSavedSessionData(DateTime now, CreateSessionSaveRequestV2 request)
     {
-        var mapHistory = _callbacks.GetMapHistory()
-            .OrderByDescending(x => x.CompletedAtUtc)
-            .Select(_callbacks.CloneMapRecord)
-            .ToArray();
+        var mapHistory = BuildOrderedMapHistory(out var completedCaptured, out var completedCost);
 
         var currentCaptured = _callbacks.ComputeCurrentMapCapturedChaos();
-        var completedCaptured = mapHistory.Sum(x => x.CapturedChaos);
         var currentCost = _callbacks.GetIsCurrentAreaTrackable() ? _callbacks.ComputePerMapCostChaos() : 0d;
-        var completedCost = mapHistory.Sum(x => x.CostChaos);
 
         var (beastTotals, familyTotals) = _callbacks.BuildSessionTotals(true);
 
@@ -83,6 +78,30 @@ internal sealed class AnalyticsSessionAggregationService
             MapHistory = mapHistory,
             CostDefaults = AnalyticsEngineV2.CloneCostBreakdown(_callbacks.GetPreparedMapCostBreakdown()).ToArray(),
         };
+    }
+
+    private MapAnalyticsRecord[] BuildOrderedMapHistory(out double completedCaptured, out double completedCost)
+    {
+        var source = _callbacks.GetMapHistory();
+        if (source == null || source.Count <= 0)
+        {
+            completedCaptured = 0d;
+            completedCost = 0d;
+            return [];
+        }
+
+        completedCaptured = 0d;
+        completedCost = 0d;
+        var mapHistory = new List<MapAnalyticsRecord>(source.Count);
+        foreach (var record in source.OrderByDescending(x => x.CompletedAtUtc))
+        {
+            var clone = _callbacks.CloneMapRecord(record);
+            completedCaptured += clone.CapturedChaos;
+            completedCost += clone.CostChaos;
+            mapHistory.Add(clone);
+        }
+
+        return mapHistory.ToArray();
     }
 
     public void FinalizeCurrentMapAnalytics(string areaHash, string areaName, DateTime now)

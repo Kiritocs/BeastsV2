@@ -8,6 +8,8 @@ namespace BeastsV2;
 
 public partial class Main
 {
+    private static readonly StringComparer AnalyticsTotalsComparer = StringComparer.OrdinalIgnoreCase;
+
     private HashSet<string> _loadedSessionIds => AnalyticsPersistenceRuntime.LoadedSessionIds;
     private Dictionary<string, SavedSessionDataV2> _loadedSessionCacheById => AnalyticsPersistenceRuntime.LoadedSessionCacheById;
     private SessionStoreV2 _sessionStore => AnalyticsPersistenceRuntime.SessionStore;
