@@ -7,6 +7,50 @@ namespace BeastsV2;
 
 internal static class AnalyticsEngineV2
 {
+    public static string FormatUserLocalDateTime(DateTime value)
+    {
+        if (value == DateTime.MinValue)
+            return string.Empty;
+
+        var localValue = value.Kind == DateTimeKind.Local ? value : value.ToLocalTime();
+        return localValue.ToString(CultureInfo.CurrentCulture);
+    }
+
+    public static string FormatUserLocalTime(DateTime value)
+    {
+        if (value == DateTime.MinValue)
+            return string.Empty;
+
+        var localValue = value.Kind == DateTimeKind.Local ? value : value.ToLocalTime();
+        return localValue.ToString("T", CultureInfo.CurrentCulture);
+    }
+
+    public static MapListItemV2 BuildMapListItem(MapAnalyticsRecord source)
+    {
+        if (source == null)
+            return null;
+
+        return new MapListItemV2
+        {
+            MapId = source.MapId,
+            CompletedAtUtc = source.CompletedAtUtc,
+            CompletedAtDisplay = FormatUserLocalDateTime(source.CompletedAtUtc),
+            AreaHash = source.AreaHash,
+            AreaName = source.AreaName,
+            DurationSeconds = source.DurationSeconds,
+            BeastsFound = source.BeastsFound,
+            RedBeastsFound = source.RedBeastsFound,
+            CapturedChaos = source.CapturedChaos,
+            CostChaos = source.CostChaos,
+            NetChaos = source.NetChaos,
+            UsedBestiaryScarabOfDuplicating = source.UsedBestiaryScarabOfDuplicating,
+            FirstRedSeenSeconds = source.FirstRedSeenSeconds,
+            BeastBreakdown = source.BeastBreakdown ?? [],
+            CostBreakdown = source.CostBreakdown ?? [],
+            ReplayEvents = source.ReplayEvents ?? [],
+        };
+    }
+
     public static List<MapCostItem> CloneCostBreakdown(IEnumerable<MapCostItem> items)
     {
         if (items == null)

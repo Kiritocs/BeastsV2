@@ -118,7 +118,13 @@ internal sealed class AnalyticsSnapshotService
             Total = ordered.Length,
             Offset = normalizedOffset,
             Limit = normalizedLimit,
-            Items = ordered.Skip(normalizedOffset).Take(normalizedLimit).Select(_callbacks.CloneMapRecord).ToArray(),
+            Items = ordered
+                .Skip(normalizedOffset)
+                .Take(normalizedLimit)
+                .Select(_callbacks.CloneMapRecord)
+                .Select(AnalyticsEngineV2.BuildMapListItem)
+                .Where(item => item != null)
+                .ToArray(),
         };
     }
 }

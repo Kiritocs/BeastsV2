@@ -186,7 +186,7 @@ public partial class Main
                 x => x.Key,
                 x => x.Value.Count > 0 ? x.Value.Average() : 0f);
 
-            Settings.BeastPrices.LastUpdated = DateTime.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
+            Settings.BeastPrices.LastUpdated = AnalyticsEngineV2.FormatUserLocalTime(DateTime.Now);
             SavePersistedBeastPriceSettings();
             Log($"Beast + item prices updated ({Settings.BeastPrices.LastUpdated}).");
         }

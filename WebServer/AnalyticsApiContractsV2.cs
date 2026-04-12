@@ -65,7 +65,27 @@ public sealed class MapListResponseV2
     public int Total { get; set; }
     public int Offset { get; set; }
     public int Limit { get; set; }
-    public MapAnalyticsRecord[] Items { get; set; } = [];
+    public MapListItemV2[] Items { get; set; } = [];
+}
+
+public sealed class MapListItemV2
+{
+    public string MapId { get; set; } = string.Empty;
+    public DateTime CompletedAtUtc { get; set; }
+    public string CompletedAtDisplay { get; set; } = string.Empty;
+    public string AreaHash { get; set; } = string.Empty;
+    public string AreaName { get; set; } = string.Empty;
+    public double DurationSeconds { get; set; }
+    public int BeastsFound { get; set; }
+    public int RedBeastsFound { get; set; }
+    public double CapturedChaos { get; set; }
+    public double CostChaos { get; set; }
+    public double NetChaos { get; set; }
+    public bool UsedBestiaryScarabOfDuplicating { get; set; }
+    public double? FirstRedSeenSeconds { get; set; }
+    public MapBeastStat[] BeastBreakdown { get; set; } = [];
+    public MapCostItem[] CostBreakdown { get; set; } = [];
+    public MapReplayEvent[] ReplayEvents { get; set; } = [];
 }
 
 public sealed class SessionSaveListItemV2
@@ -73,6 +93,7 @@ public sealed class SessionSaveListItemV2
     public string SessionId { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public DateTime SavedAtUtc { get; set; }
+    public string SavedAtDisplay { get; set; } = string.Empty;
     public bool IsAutoSave { get; set; }
     public SavedSessionTagsV2 Tags { get; set; } = new();
     public SavedSessionSummaryV2 Summary { get; set; } = new();

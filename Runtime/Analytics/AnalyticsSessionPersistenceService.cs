@@ -49,6 +49,7 @@ internal sealed class AnalyticsSessionPersistenceService
                 SessionId = data.SessionId,
                 Name = data.Name ?? string.Empty,
                 SavedAtUtc = data.SavedAtUtc,
+                SavedAtDisplay = AnalyticsEngineV2.FormatUserLocalDateTime(data.SavedAtUtc),
                 IsAutoSave = data.IsAutoSave,
                 Tags = data.Tags ?? new SavedSessionTagsV2(),
                 Summary = data.Summary ?? new SavedSessionSummaryV2(),

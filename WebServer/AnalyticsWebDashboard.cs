@@ -235,11 +235,14 @@ th{position:sticky;top:0;background:var(--panel2);font-size:11px;color:var(--mut
 
 <script>
 const S={cur:null,maps:[],saves:[],cmp:[],focusBeast:'',openMapRows:new Set()};
+const beastStatsCache=new WeakMap();
+const targetCache={maps:null,trackedKey:'',targets:[]};
 const I=id=>document.getElementById(id);
 const C=v=>`${Number(v||0).toFixed(1)}c`;
 const N=v=>{v=Number(v||0);return `<span class="${v>=0?'good':'bad'}">${v>=0?'+':''}${v.toFixed(1)}c</span>`};
 const D=s=>{s=Math.max(0,Number(s||0));const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),x=Math.floor(s%60);return h>0?`${h}h ${m}m ${x}s`:`${m}m ${x}s`};
 const DT=s=>Number.isFinite(Number(s))&&Number(s)>0?D(s):'--';
+const LDT=(display,utc)=>{const text=normalized(display);return text||(utc?new Date(utc).toLocaleString():'')};
 const E=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const Q=r=>r.json().catch(()=>({}));
 const tone=t=>t==='captured'?'tone-captured':t==='missed'?'tone-missed':'tone-seen';
@@ -367,7 +370,7 @@ function renderMaps(){
     body.innerHTML=maps.map((m,i)=>{
         const id=stableMapRowId(m,i);
         const openClass=applyMapRowOpenState(id);
-        return `<tr class="row${openClass}" data-detail="${id}"><td>${E(m.areaName||m.areaHash||'n/a')}</td><td>${D(m.durationSeconds)}</td><td>${m.redBeastsFound||0}</td><td>${DT(m.firstRedSeenSeconds)}</td><td>${C(m.capturedChaos)}</td><td>${C(m.costChaos)}</td><td>${N(m.netChaos)}</td><td>${m.usedBestiaryScarabOfDuplicating?'Yes':'No'}</td><td>${m.completedAtUtc?new Date(m.completedAtUtc).toLocaleString():''}</td></tr><tr id="${id}" class="detail${openClass}"><td colspan="9"><div class="detail-grid"><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Beast Breakdown</h2>${detailBeastTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Cost Breakdown</h2>${detailCostTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Replay Log</h2>${detailReplayTable(m)}</div></div></td></tr>`;
+        return `<tr class="row${openClass}" data-detail="${id}"><td>${E(m.areaName||m.areaHash||'n/a')}</td><td>${D(m.durationSeconds)}</td><td>${m.redBeastsFound||0}</td><td>${DT(m.firstRedSeenSeconds)}</td><td>${C(m.capturedChaos)}</td><td>${C(m.costChaos)}</td><td>${N(m.netChaos)}</td><td>${m.usedBestiaryScarabOfDuplicating?'Yes':'No'}</td><td>${E(LDT(m.completedAtDisplay,m.completedAtUtc))}</td></tr><tr id="${id}" class="detail${openClass}"><td colspan="9"><div class="detail-grid"><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Beast Breakdown</h2>${detailBeastTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Cost Breakdown</h2>${detailCostTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Replay Log</h2>${detailReplayTable(m)}</div></div></td></tr>`;
     }).join('');
     renderDerived(maps);
 }
@@ -552,7 +555,7 @@ function savesRender(){
     const body=I('saveBody');
     const saves=S.saves||[];
     if(!saves.length){body.innerHTML='<tr><td colspan="4" class="small">No saved sessions yet.</td></tr>';syncSaveSelectors();return}
-    body.innerHTML=saves.map(x=>{const tags=[x.tags?.strategy,x.tags?.scarab,x.tags?.atlas,x.tags?.mapPool].filter(Boolean).join(' | '),label=x.name||x.sessionId,auto=x.isAutoSave?'<span class="badge" style="padding:2px 6px">AutoSave</span>':'',loaded=x.alreadyLoaded?'<span class="badge live" style="padding:2px 6px">Loaded</span>':'';return `<tr><td>${E(label)}<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${auto}${loaded}</div><div class="small">${E(tags||'no tags')}</div></td><td>${x.summary?.mapsCompleted||0}</td><td>${x.savedAtUtc?new Date(x.savedAtUtc).toLocaleString():''}</td><td><div style="display:flex;gap:8px;flex-wrap:wrap">${x.alreadyLoaded?`<button onclick="unloadSave('${x.sessionId}')">Unload</button>`:`<button onclick="loadSave('${x.sessionId}')">Load</button>`}<button onclick="exportSave('${x.sessionId}')">JSON</button><button class="danger" onclick="deleteSave('${x.sessionId}')">Delete</button></div></td></tr>`}).join('');
+    body.innerHTML=saves.map(x=>{const tags=[x.tags?.strategy,x.tags?.scarab,x.tags?.atlas,x.tags?.mapPool].filter(Boolean).join(' | '),label=x.name||x.sessionId,auto=x.isAutoSave?'<span class="badge" style="padding:2px 6px">AutoSave</span>':'',loaded=x.alreadyLoaded?'<span class="badge live" style="padding:2px 6px">Loaded</span>':'';return `<tr><td>${E(label)}<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${auto}${loaded}</div><div class="small">${E(tags||'no tags')}</div></td><td>${x.summary?.mapsCompleted||0}</td><td>${E(LDT(x.savedAtDisplay,x.savedAtUtc))}</td><td><div style="display:flex;gap:8px;flex-wrap:wrap">${x.alreadyLoaded?`<button onclick="unloadSave('${x.sessionId}')">Unload</button>`:`<button onclick="loadSave('${x.sessionId}')">Load</button>`}<button onclick="exportSave('${x.sessionId}')">JSON</button><button class="danger" onclick="deleteSave('${x.sessionId}')">Delete</button></div></td></tr>`}).join('');
     syncSaveSelectors();
 }
 

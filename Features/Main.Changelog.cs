@@ -8,10 +8,13 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
-        new(2026, 04, 12, 8,
+        new(2026, 04, 12, 9,
+            "Analytics Web Server dashboard times now follow Windows regional time settings consistently in Map History and Saved Sessions instead of mixing 24-hour saved values with browser-local 12-hour rendering.",
+            "Price Feed time text now uses the same local clock format for Prices as of and Last price update so analytics and price refresh timestamps match."),
+        new(2026, 04, 12, 5,
             "Counter Window -> Tracked Completion Message now finishes when Einhar quest text shows Mission Complete even if the quest progress line was never parsed first.",
             "Tracked completion now stays visible after plugin reloads inside an already-finished Einhar map and still stays visible when re-entering the same completed instance."),
-        new(2026, 04, 12, 7,
+        new(2026, 04, 12, 4,
             "Reduced idle render cost by throttling Analytics Web Server snapshot rebuilds to once per second under Analytics Web Server and by skipping large-map overlay setup while the Tab map is closed.",
             "Large-map beast labels now only allocate overlay draw work when the map is actually visible and there is something to draw.",
             "Counter/completion state is now computed once per render, Bestiary clipboard and price overlays now bail out unless the Challenges panel is visible, and hidden Map Device cost polling is throttled so hideout idling no longer re-reads Map Device state every frame.",
