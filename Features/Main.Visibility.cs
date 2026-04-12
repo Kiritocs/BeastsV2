@@ -13,17 +13,18 @@ public partial class Main
         var ingameUi = GameController?.IngameState?.IngameUi;
         if (ingameUi == null) return;
 
+        var visibility = Settings.Visibility;
+        var isHideoutLikeArea = IsHideoutLikeArea(GameController.Area?.CurrentArea);
         var counterWindow = Settings.CounterWindow;
         if (counterWindow.CompletedStyle.ShowWhileNotComplete.Value ||
             counterWindow.CompletedMessage.ShowWhileNotComplete.Value ||
             counterWindow.TrackedCompletionMessage.ShowWhileNotComplete.Value)
         {
             shouldRenderCounterAndMessage = true;
-            shouldRenderAnalytics = true;
+            shouldRenderAnalytics = !visibility.HideAnalyticsInHideout.Value || !isHideoutLikeArea;
             return;
         }
 
-        var visibility = Settings.Visibility;
         if (visibility.HideOnFullscreenPanels.Value && ingameUi.FullscreenPanels.Any(p => p.IsVisible)) return;
 
         shouldRenderAnalytics = !IsConfiguredSidePanelOpen(
@@ -31,7 +32,12 @@ public partial class Main
             visibility.HideAnalyticsOnOpenLeftPanel.Value,
             visibility.HideAnalyticsOnOpenRightPanel.Value);
 
-        if (visibility.HideInHideout.Value && IsHideoutLikeArea(GameController.Area?.CurrentArea)) return;
+        if (visibility.HideAnalyticsInHideout.Value && isHideoutLikeArea)
+        {
+            shouldRenderAnalytics = false;
+        }
+
+        if (visibility.HideInHideout.Value && isHideoutLikeArea) return;
 
         shouldRenderCounterAndMessage = !IsConfiguredSidePanelOpen(
             ingameUi,

@@ -319,6 +319,9 @@ public class VisibilitySettings
 
     [Menu("Hide Analytics On Open Right Panel", "Hide the analytics overlay when a right-side panel like inventory or stash is open.")]
     public ToggleNode HideAnalyticsOnOpenRightPanel { get; set; } = new(true);
+    
+    [Menu("Hide Analytics In Hideout", "Hide the analytics overlay while you are inside your hideout. Disable this if you want analytics to remain visible there.")]
+    public ToggleNode HideAnalyticsInHideout { get; set; } = new(true);
 }
 
 [Submenu(CollapsedByDefault = true)]
