@@ -22,6 +22,8 @@ namespace BeastsV2;
 
 public partial class Main : BaseSettingsPlugin<Settings>
 {
+    private static readonly TimeSpan AnalyticsWebSnapshotRefreshInterval = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan PreparedMapCostCapturePollInterval = TimeSpan.FromMilliseconds(250);
     private const string CounterLabel = "Beasts Found";
     private const string MapTimePrefix = "Map Time:";
     private const string BestiaryScarabOfDuplicatingName = "Bestiary Scarab of Duplicating";
@@ -52,6 +54,11 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private int _currentMapBeastsFound;
     private int _currentMapRedBeastsFound;
     private double? _currentMapFirstRedSeenSeconds;
+    private DateTime _lastAnalyticsWebSnapshotRefreshUtc;
+    private DateTime _lastPreparedMapCostCapturePollUtc;
+    private string _renderCounterText = string.Empty;
+    private bool _renderAllBeastsFound;
+    private bool _renderAllTrackedValuableBeastsCaptured;
     private bool _analyticsCollapsed = true;
     private int _rareBeastsFound;
     private int _sessionBeastsFound;
@@ -77,6 +84,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         LoadPersistedBeastPriceSettings();
         QueuePriceFetch();
 
+        _lastAnalyticsWebSnapshotRefreshUtc = DateTime.MinValue;
         RefreshAnalyticsWebSnapshot(now);
         EnsureAnalyticsWebServerState();
     }
@@ -265,6 +273,11 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
     private void TrackBeastCaptureStates()
     {
+        if (_trackedBeastEntities.Count == 0)
+        {
+            return;
+        }
+
         foreach (var (id, entity) in _trackedBeastEntities)
         {
             if (!entity.IsValid) continue;
@@ -307,6 +320,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     public override void Render()
     {
         var now = DateTime.UtcNow;
+
         ApplyPauseMenuTimerState(now);
 
         if (_isCurrentAreaTrackable)
@@ -314,19 +328,10 @@ public partial class Main : BaseSettingsPlugin<Settings>
             TrackBeastCaptureStates();
         }
 
-        if (_isCurrentAreaTrackable && !_currentMapWasComplete)
-        {
-            BuildCounterDisplay(out _, out var allBeastsFound);
-            if (allBeastsFound && AreAllTrackedValuableBeastsCaptured())
-                _currentMapWasComplete = true;
-            else if (_sawBeastQuestThisMap && IsBeastQuestMissionComplete())
-            {
-                MarkAllMapBeastsCaptured();
-                _currentMapWasComplete = true;
-            }
-        }
+        UpdateRenderCounterState();
 
         HandleBestiaryClipboardAutoCopy();
+
         HandleAutomationHotkey();
         DrawBestiaryAutomationQuickButtons();
         DrawMenagerieInventoryQuickButton();
@@ -349,8 +354,11 @@ public partial class Main : BaseSettingsPlugin<Settings>
         }
 
         RenderMapOverlays(mapRender, trackedBeasts);
+
         RenderPriceOverlays(mapRender);
+
         RenderAnalyticsOverlay(analyticsWindow);
+
         RenderAutomationStatusOverlay();
     }
 
@@ -361,7 +369,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
             DrawInWorldBeasts(trackedBeasts);
         }
 
-        if (ShouldDrawLargeMapOverlay(mapRender))
+        if (ShouldDrawLargeMapOverlay(mapRender, trackedBeasts.Count > 0) && IsLargeMapVisible())
         {
             DrawBeastsOnLargeMap(trackedBeasts);
         }
@@ -488,28 +496,30 @@ public partial class Main : BaseSettingsPlugin<Settings>
         return AutomationHotkeys.TryGetPressedHotkey(hotkey, _isAutomationRunning, out key, out usedKeyDownFallback);
     }
 
-    private static bool ShouldCollectTrackedBeastRenderInfo(MapRenderSettings mapRender)
+    private bool ShouldCollectTrackedBeastRenderInfo(MapRenderSettings mapRender)
     {
         return mapRender.ShowBeastLabelsInWorld.Value ||
-               mapRender.ShowBeastsOnMap.Value ||
+               (mapRender.ShowBeastsOnMap.Value && IsLargeMapVisible()) ||
                mapRender.ShowTrackedBeastsWindow.Value;
     }
 
-    private static bool ShouldDrawLargeMapOverlay(MapRenderSettings mapRender)
+    private static bool ShouldDrawLargeMapOverlay(MapRenderSettings mapRender, bool hasTrackedBeasts)
     {
         var explorationRoute = mapRender.ExplorationRoute;
-        return mapRender.ShowBeastsOnMap.Value ||
+        return (mapRender.ShowBeastsOnMap.Value && hasTrackedBeasts) ||
                (explorationRoute.Enabled.Value && (
                    explorationRoute.ShowExplorationRoute.Value ||
                    explorationRoute.ShowPathsToBeasts.Value ||
                    explorationRoute.ShowCoverageOnMiniMap.Value));
     }
 
+    private bool IsLargeMapVisible() => GameController?.IngameState?.IngameUi?.Map?.LargeMap?.IsVisible == true;
+
     private void DrawCounterAndCompletedMessage()
     {
-        BuildCounterDisplay(out var counterText, out var allBeastsFound);
-        allBeastsFound |= _currentMapWasComplete;
-        var allTrackedValuableBeastsCaptured = allBeastsFound && AreAllTrackedValuableBeastsCaptured();
+        var counterText = _renderCounterText;
+        var allBeastsFound = _renderAllBeastsFound;
+        var allTrackedValuableBeastsCaptured = _renderAllTrackedValuableBeastsCaptured;
 
         var counterWindow = Settings.CounterWindow;
         var completedCounter = counterWindow.CompletedStyle;
@@ -726,6 +736,41 @@ public partial class Main : BaseSettingsPlugin<Settings>
         text = $"{CounterLabel}: {_rareBeastsFound}";
     }
 
+    private void UpdateRenderCounterState()
+    {
+        if (Settings?.Visibility?.HideInHideout?.Value == true && IsHideoutLikeArea(GameController?.Area?.CurrentArea))
+        {
+            _renderAllBeastsFound = false;
+            _renderAllTrackedValuableBeastsCaptured = false;
+            return;
+        }
+
+        BuildCounterDisplay(out _renderCounterText, out var allBeastsFound);
+
+        var allTrackedValuableBeastsCaptured = false;
+        if (allBeastsFound || _currentMapWasComplete)
+        {
+            allTrackedValuableBeastsCaptured = AreAllTrackedValuableBeastsCaptured();
+        }
+
+        if (_isCurrentAreaTrackable && !_currentMapWasComplete)
+        {
+            if (allBeastsFound && allTrackedValuableBeastsCaptured)
+            {
+                _currentMapWasComplete = true;
+            }
+            else if (_sawBeastQuestThisMap && IsBeastQuestMissionComplete())
+            {
+                MarkAllMapBeastsCaptured();
+                _currentMapWasComplete = true;
+                allTrackedValuableBeastsCaptured = true;
+            }
+        }
+
+        _renderAllBeastsFound = allBeastsFound || _currentMapWasComplete;
+        _renderAllTrackedValuableBeastsCaptured = _renderAllBeastsFound && allTrackedValuableBeastsCaptured;
+    }
+
     private bool AreAllTrackedValuableBeastsCaptured()
     {
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
@@ -845,7 +890,20 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
     private void RefreshAnalyticsWebSnapshot(DateTime now)
     {
+        if (Settings?.AnalyticsWebServer?.Enabled?.Value != true)
+        {
+            _lastAnalyticsWebSnapshotRefreshUtc = DateTime.MinValue;
+            return;
+        }
+
+        if (_lastAnalyticsWebSnapshotRefreshUtc != DateTime.MinValue &&
+            now - _lastAnalyticsWebSnapshotRefreshUtc < AnalyticsWebSnapshotRefreshInterval)
+        {
+            return;
+        }
+
         AnalyticsWeb.RefreshSnapshot(now);
+        _lastAnalyticsWebSnapshotRefreshUtc = now;
     }
 
     private void EnsureAnalyticsWebServerState()

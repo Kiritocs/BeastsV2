@@ -32,16 +32,31 @@ public partial class Main
 
     private bool IsBestiaryChallengePanelOpen()
     {
+        if (BestiaryChallengesPanel?.IsVisible != true)
+        {
+            return false;
+        }
+
         return TryGetBestiaryCapturedBeastsButton()?.IsVisible == true;
     }
 
     private bool IsBestiaryPanelVisible()
     {
+        if (BestiaryChallengesPanel?.IsVisible != true)
+        {
+            return false;
+        }
+
         return TryGetBestiaryPanel()?.IsVisible == true;
     }
 
     private bool IsBestiaryCapturedBeastsTabVisible()
     {
+        if (BestiaryChallengesPanel?.IsVisible != true)
+        {
+            return false;
+        }
+
         return TryGetBestiaryCapturedBeastsTab()?.IsVisible == true;
     }
 

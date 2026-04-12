@@ -65,6 +65,15 @@ public partial class Main
 
     private void TryCapturePreparedMapCostBreakdownFromMapDeviceWindow()
     {
+        var now = DateTime.UtcNow;
+        if (_lastPreparedMapCostCapturePollUtc != DateTime.MinValue &&
+            now - _lastPreparedMapCostCapturePollUtc < PreparedMapCostCapturePollInterval)
+        {
+            return;
+        }
+
+        _lastPreparedMapCostCapturePollUtc = now;
+
         var mapDeviceWindow = GameController?.IngameState?.IngameUi?.MapDeviceWindow;
         if (mapDeviceWindow?.IsVisible != true)
         {

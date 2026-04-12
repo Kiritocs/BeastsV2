@@ -115,7 +115,15 @@ public partial class Main
     private void DrawCapturedBeastItems(IList<NormalInventoryItem> items) =>
         MapRenderPanelOverlays.DrawCapturedBeastItems(items, ItemizedCapturedMonsterMetadata);
 
-    private void DrawBestiaryPanelPrices() => MapRenderPanelOverlays.DrawBestiaryPanelPrices();
+    private void DrawBestiaryPanelPrices()
+    {
+        if (BestiaryChallengesPanel?.IsVisible != true)
+        {
+            return;
+        }
+
+        MapRenderPanelOverlays.DrawBestiaryPanelPrices();
+    }
 
     private bool TryGetBestiaryCapturedBeastsDisplay(out Element beastsDisplay, out RectangleF visibleRect) =>
         BestiaryCapturedBeastsView.TryGetCapturedBeastsDisplay(out beastsDisplay, out visibleRect);
