@@ -8,6 +8,11 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 12, 7,
+            "Reduced idle render cost by throttling Analytics Web Server snapshot rebuilds to once per second under Analytics Web Server and by skipping large-map overlay setup while the Tab map is closed.",
+            "Large-map beast labels now only allocate overlay draw work when the map is actually visible and there is something to draw.",
+            "Counter/completion state is now computed once per render, Bestiary clipboard and price overlays now bail out unless the Challenges panel is visible, and hidden Map Device cost polling is throttled so hideout idling no longer re-reads Map Device state every frame.",
+            "Overlays -> Visibility now separates Hide Counter & Message In Hideout from Hide Analytics In Hideout, so analytics can stay visible in hideout even when the counter and completion message are hidden."),
         new(2026, 04, 12, 3,
             "Added optional soft input locking during automation under Automation -> Timing -> Lock User Input During Automation so user mouse movement, clicks, scrolls, and unrelated key presses are suppressed while a run is active.",
             "Automation trigger hotkeys still pass through during the lock so an active run can still be stopped cleanly.",
