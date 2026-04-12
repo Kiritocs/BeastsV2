@@ -8,6 +8,9 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 12, 8,
+            "Counter Window -> Tracked Completion Message now finishes when Einhar quest text shows Mission Complete even if the quest progress line was never parsed first.",
+            "Tracked completion now stays visible after plugin reloads inside an already-finished Einhar map and still stays visible when re-entering the same completed instance."),
         new(2026, 04, 12, 7,
             "Reduced idle render cost by throttling Analytics Web Server snapshot rebuilds to once per second under Analytics Web Server and by skipping large-map overlay setup while the Tab map is closed.",
             "Large-map beast labels now only allocate overlay draw work when the map is actually visible and there is something to draw.",

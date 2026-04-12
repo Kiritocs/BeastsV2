@@ -6,6 +6,8 @@ namespace BeastsV2;
 
 public partial class Main
 {
+    private static Element GetPrimaryQuestEntry(Element questTracker) => GetQuestEntriesContainer(questTracker)?.GetChildAtIndex(0);
+
     private bool TryGetBeastQuestProgress(out int current, out int total)
     {
         current = 0;
@@ -47,9 +49,12 @@ public partial class Main
     private static Element GetQuestEntriesContainer(Element questTracker) => BeastsV2Helpers.GetChildAtIndices(questTracker, 0, 0);
 
     private static string GetPrimaryQuestText(Element questTracker) =>
-        GetQuestEntryText(GetQuestEntriesContainer(questTracker)?.GetChildAtIndex(0));
+        GetVisibleQuestEntryText(GetPrimaryQuestEntry(questTracker));
 
     private static string GetQuestEntryText(Element questEntry) => BeastsV2Helpers.GetChildAtIndices(questEntry, 0, 1, 0, 1)?.Text;
+
+    private static string GetVisibleQuestEntryText(Element questEntry) =>
+        questEntry?.IsVisible == true ? GetQuestEntryText(questEntry) : null;
 
     private static bool TryParseBeastQuestProgress(string questText, out int current, out int total)
     {

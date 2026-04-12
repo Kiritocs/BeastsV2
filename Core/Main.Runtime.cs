@@ -746,6 +746,12 @@ public partial class Main
         set => Runtime.State.Map.MapWasFinalized = value;
     }
 
+    private bool _shouldRenderFinalizedMapCompletionOverlay
+    {
+        get => Runtime.State.Map.ShouldRenderFinalizedMapCompletionOverlay;
+        set => Runtime.State.Map.ShouldRenderFinalizedMapCompletionOverlay = value;
+    }
+
     private int _analyticsWebServerPort
     {
         get => Runtime.State.WebServer.Port;

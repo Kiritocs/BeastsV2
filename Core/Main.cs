@@ -65,7 +65,6 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private int _totalRedBeastsSession;
     private bool _wasBestiaryTabVisible;
     private bool _isBestiaryClipboardPasteRunning;
-    private bool _sawBeastQuestThisMap;
 
     public Main()
     {
@@ -687,7 +686,6 @@ public partial class Main : BaseSettingsPlugin<Settings>
         _countedRareBeastIds.Clear();
         _capturedBeastIds.Clear();
         _rareBeastsFound = 0;
-        _sawBeastQuestThisMap = false;
     }
 
     private void MarkAllMapBeastsCaptured()
@@ -727,7 +725,6 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         if (TryGetBeastQuestProgress(out _, out var totalBeasts) && totalBeasts > 0)
         {
-            _sawBeastQuestThisMap = true;
             text = $"{CounterLabel}: {_rareBeastsFound}/{totalBeasts}";
             allBeastsFound = _rareBeastsFound >= totalBeasts;
             return;
@@ -745,25 +742,37 @@ public partial class Main : BaseSettingsPlugin<Settings>
             return;
         }
 
+        if (_shouldRenderFinalizedMapCompletionOverlay)
+        {
+            BuildCounterDisplay(out _renderCounterText, out _);
+            _renderAllBeastsFound = true;
+            _renderAllTrackedValuableBeastsCaptured = true;
+            return;
+        }
+
         BuildCounterDisplay(out _renderCounterText, out var allBeastsFound);
 
         var allTrackedValuableBeastsCaptured = false;
+        var missionComplete = _isCurrentAreaTrackable && IsBeastQuestMissionComplete();
         if (allBeastsFound || _currentMapWasComplete)
         {
             allTrackedValuableBeastsCaptured = AreAllTrackedValuableBeastsCaptured();
         }
 
-        if (_isCurrentAreaTrackable && !_currentMapWasComplete)
+        if (missionComplete)
+        {
+            if (!_currentMapWasComplete)
+            {
+                MarkAllMapBeastsCaptured();
+                _currentMapWasComplete = true;
+            }
+            allTrackedValuableBeastsCaptured = true;
+        }
+        else if (_isCurrentAreaTrackable && !_currentMapWasComplete)
         {
             if (allBeastsFound && allTrackedValuableBeastsCaptured)
             {
                 _currentMapWasComplete = true;
-            }
-            else if (_sawBeastQuestThisMap && IsBeastQuestMissionComplete())
-            {
-                MarkAllMapBeastsCaptured();
-                _currentMapWasComplete = true;
-                allTrackedValuableBeastsCaptured = true;
             }
         }
 

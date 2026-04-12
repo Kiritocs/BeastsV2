@@ -34,6 +34,7 @@ internal sealed class MapTrackingState
     public bool CurrentMapWasComplete { get; set; }
     public int ActiveMapInstanceId { get; set; } = -1;
     public bool MapWasFinalized { get; set; }
+    public bool ShouldRenderFinalizedMapCompletionOverlay { get; set; }
 }
 
 internal sealed class WebServerRuntimeState

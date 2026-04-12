@@ -51,6 +51,7 @@ internal sealed class AreaTransitionCoordinator
                                             (session.CurrentMapElapsed > TimeSpan.Zero || hasCurrentMapProgress);
 
             map.IsCurrentAreaTrackable = false;
+            map.ShouldRenderFinalizedMapCompletionOverlay = false;
             if (map.CurrentMapWasComplete)
             {
                 map.MapWasFinalized = true;
@@ -83,6 +84,7 @@ internal sealed class AreaTransitionCoordinator
             if (map.MapWasFinalized)
             {
                 map.IsCurrentAreaTrackable = false;
+                map.ShouldRenderFinalizedMapCompletionOverlay = true;
                 session.CurrentMapStartUtc = null;
 
                 return new AreaTransitionDecision(
@@ -97,6 +99,7 @@ internal sealed class AreaTransitionCoordinator
             }
 
             map.IsCurrentAreaTrackable = true;
+            map.ShouldRenderFinalizedMapCompletionOverlay = false;
             session.CurrentMapStartUtc = now;
 
             return new AreaTransitionDecision(
@@ -115,6 +118,7 @@ internal sealed class AreaTransitionCoordinator
                                          hasCurrentMapProgress;
 
         map.MapWasFinalized = false;
+        map.ShouldRenderFinalizedMapCompletionOverlay = false;
         map.ActiveMapAreaHash = newAreaHash;
         map.ActiveMapAreaName = newAreaName;
         map.ActiveMapInstanceId = newAreaInstanceId;
