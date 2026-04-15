@@ -88,11 +88,18 @@ public partial class Main
         return completed && !aborted;
     }
 
-    private async Task<bool> EnsureAbortableAutomationOpenAsync(
+    private enum AutomationOpenRetryResult
+    {
+        Continue,
+        Abort,
+        Success
+    }
+
+    private async Task<bool> EnsureAutomationOpenWithRetryAsync(
         Func<bool> isOpen,
         int timeoutMs,
         int pollDelayMs,
-        Func<Task<bool>> onPendingAbortAsync,
+        Func<Task<AutomationOpenRetryResult>> onPendingAsync,
         string timeoutStatus = null)
     {
         if (isOpen?.Invoke() == true)
@@ -100,22 +107,41 @@ public partial class Main
             return true;
         }
 
-        var aborted = false;
-        var opened = await WaitForAbortableAutomationConditionAsync(
-            () => isOpen?.Invoke() == true,
-            timeoutMs,
-            pollDelayMs,
-            async () =>
-            {
-                aborted = onPendingAbortAsync != null && await onPendingAbortAsync();
-                return aborted;
-            });
-        if (opened)
+        var startedAt = DateTime.UtcNow;
+        while ((DateTime.UtcNow - startedAt).TotalMilliseconds < GetAutomationTimeoutMs(timeoutMs))
         {
-            return true;
+            ThrowIfAutomationStopRequested();
+
+            if (isOpen?.Invoke() == true)
+            {
+                return true;
+            }
+
+            var advanceResult = onPendingAsync != null
+                ? await onPendingAsync()
+                : AutomationOpenRetryResult.Abort;
+            if (advanceResult == AutomationOpenRetryResult.Success)
+            {
+                return true;
+            }
+
+            if (advanceResult == AutomationOpenRetryResult.Abort)
+            {
+                return false;
+            }
+
+            if (isOpen?.Invoke() == true)
+            {
+                return true;
+            }
+
+            if (pollDelayMs > 0)
+            {
+                await DelayAutomationAsync(pollDelayMs);
+            }
         }
 
-        if (!aborted && !string.IsNullOrWhiteSpace(timeoutStatus))
+        if (!string.IsNullOrWhiteSpace(timeoutStatus))
         {
             UpdateAutomationStatus(timeoutStatus);
         }

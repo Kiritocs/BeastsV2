@@ -1015,10 +1015,7 @@ public partial class Main
             return null;
         }
 
-        return TryGetPropertyValueAsString(quantityTextElement, "TextNoTags")?.Trim()
-               ?? TryGetPropertyValueAsString(quantityTextElement, "Text")?.Trim()
-               ?? TryGetElementText(quantityTextElement)
-               ?? GetElementTextRecursive(quantityTextElement, 1)?.Trim();
+        return TryGetAutomationElementText(quantityTextElement, 1);
     }
 
     private async Task<string> WaitForCurrencyShiftClickMenuQuantityTextAsync(string expectedText, int timeoutMs)

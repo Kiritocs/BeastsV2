@@ -191,7 +191,7 @@ public partial class Main
         return GetPlayerInventoryFreeCellCount();
     }
 
-    private async Task WaitForBestiaryDisplayedBeastsToStabilizeAsync(int timeoutMs = 350, int pollDelayMs = 25, int requiredStableSamples = 2)
+    private async Task WaitForBestiaryDisplayedBeastsToStabilizeAsync(int timeoutMs = 200, int pollDelayMs = 25, int requiredStableSamples = 2)
     {
         if (!await WaitForBestiaryCapturedBeastsDisplayAsync())
         {
@@ -230,7 +230,7 @@ public partial class Main
     private async Task<string> WaitForBestiarySearchRegexTextAsync(string expectedText, int timeoutMs)
     {
         return await PollAutomationValueAsync(
-            GetBestiarySearchRegexText,
+            () => TryGetBestiaryObservedSearchRegex(out var observedRegex) ? observedRegex : null,
             text => string.Equals(text, expectedText, StringComparison.Ordinal),
             timeoutMs,
             AutomationTiming.FastPollDelayMs);
@@ -505,16 +505,10 @@ public partial class Main
 
     private string GetBestiarySearchRegexText()
     {
-        var textElement = TryGetBestiarySearchRegexTextElement();
-        if (textElement == null)
-        {
-            return null;
-        }
-
-        return TryGetPropertyValueAsString(textElement, "Text")
-               ?? textElement.Text
-               ?? TryGetElementText(textElement)
-               ?? GetElementTextRecursive(textElement, 1);
+        return GetBestiarySearchRegexReadCandidates()
+            .Where(ContainsReadableBestiarySearchText)
+            .OrderByDescending(text => text.Length)
+            .FirstOrDefault();
     }
 
     private Element TryGetBestiarySearchRegexFocusElement()
@@ -523,23 +517,38 @@ public partial class Main
                ?? TryGetBestiarySearchRegexTextElement();
     }
 
-    private async Task FocusBestiarySearchRegexInputAsync(int settleDelayMs = 30)
+    private IEnumerable<Element> EnumerateBestiarySearchRegexReadElements()
     {
-        var searchFocusElement = TryGetBestiarySearchRegexFocusElement();
-        if (searchFocusElement?.IsVisible != true)
+        var fixedElement = TryGetBestiaryElementWithinResolvedPanel(BestiarySearchRegexTextPath);
+        if (fixedElement?.IsVisible == true)
         {
-            return;
+            yield return fixedElement;
+
+            foreach (var descendant in EnumerateDescendants(fixedElement))
+            {
+                if (descendant?.IsVisible == true)
+                {
+                    yield return descendant;
+                }
+            }
         }
 
-        var timing = AutomationTiming;
-        await ClickElementAsync(
-            searchFocusElement,
-            timing.UiClickPreDelayMs,
-            Math.Max(timing.FastPollDelayMs, settleDelayMs),
-            GetConfiguredBestiaryClickDelayMs());
+        var inputContainer = TryFindBestiaryFilterInputContainer(TryGetBestiaryCapturedBeastsTab());
+        if (inputContainer?.IsVisible == true)
+        {
+            yield return inputContainer;
+
+            foreach (var descendant in EnumerateDescendants(inputContainer))
+            {
+                if (descendant?.IsVisible == true)
+                {
+                    yield return descendant;
+                }
+            }
+        }
     }
 
-    private async Task<bool> EnsureBestiarySearchRegexInputReadyAsync(bool allowHotkeyFallback, bool forceHotkey = false)
+    private async Task EnsureBestiarySearchRegexInputReadyAsync()
     {
         if (!await WaitForBestiaryCapturedBeastsDisplayAsync())
         {
@@ -547,68 +556,35 @@ public partial class Main
             throw new InvalidOperationException("Captured Beasts display is not ready while preparing the Bestiary search.");
         }
 
-        if (!forceHotkey && TryGetBestiarySearchRegexFocusElement()?.IsVisible == true)
-        {
-            await FocusBestiarySearchRegexInputAsync();
-            return false;
-        }
-
-        if (!allowHotkeyFallback)
-        {
-            return false;
-        }
-
         var timing = AutomationTiming;
         await CtrlTapKeyAsync(Keys.F, timing.KeyTapDelayMs, timing.FastPollDelayMs);
         EnsureBestiaryCapturedBeastsTabVisible("opening the Bestiary search");
         await DelayForUiCheckAsync(timing.UiCheckInitialSettleDelayMs);
-        await FocusBestiarySearchRegexInputAsync();
-        return true;
     }
 
-    private async Task ClearBestiarySearchRegexInputAsync(bool focusInput = true)
+    private async Task<string> PasteBestiarySearchRegexAsync(string regex)
     {
-        var timing = AutomationTiming;
-        if (focusInput)
-        {
-            await FocusBestiarySearchRegexInputAsync();
-        }
-
-        await CtrlTapKeyAsync(Keys.A, timing.KeyTapDelayMs, timing.KeyTapDelayMs);
-        await TapKeyAsync(Keys.Back, timing.KeyTapDelayMs, timing.FastPollDelayMs);
-        await DelayForUiCheckAsync(timing.UiCheckInitialSettleDelayMs);
-    }
-
-    private async Task<string> PasteBestiarySearchRegexAsync(string regex, bool focusInput = true)
-    {
-        if (focusInput)
-        {
-            await FocusBestiarySearchRegexInputAsync();
-        }
-
         await PasteClipboardAsync();
         await DelayForUiCheckAsync(AutomationTiming.UiCheckInitialSettleDelayMs);
-        return await WaitForBestiarySearchRegexTextAsync(regex, 300) ?? GetBestiarySearchRegexText();
+        return await WaitForBestiarySearchRegexTextAsync(regex, 500);
     }
 
-    private bool CanReliablyReadBestiarySearchRegexText(Element textElement)
+    private IEnumerable<string> GetBestiarySearchRegexReadCandidates()
     {
-        if (textElement == null)
-        {
-            return false;
-        }
-
-        return GetBestiarySearchRegexReadCandidates(textElement).Any(ContainsReadableBestiarySearchText);
+        return EnumerateBestiarySearchRegexReadElements()
+            .SelectMany(GetBestiarySearchRegexReadCandidates)
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .Select(text => text.Trim())
+            .Distinct(StringComparer.Ordinal);
     }
 
     private IEnumerable<string> GetBestiarySearchRegexReadCandidates(Element textElement)
     {
+        yield return TryGetPropertyValueAsString(textElement, "InputText")?.Trim();
+        yield return TryGetPropertyValueAsString(textElement, "CurrentText")?.Trim();
         yield return TryGetPropertyValueAsString(textElement, "TextNoTags")?.Trim();
         yield return TryInvokeMethodAsString(textElement, "GetTextWithNoTags", 512)?.Trim();
-        yield return TryGetPropertyValueAsString(textElement, "Text")?.Trim();
-        yield return textElement.Text?.Trim();
-        yield return TryGetElementText(textElement)?.Trim();
-        yield return GetElementTextRecursive(textElement, 1)?.Trim();
+        yield return TryGetAutomationElementText(textElement, 2);
     }
 
     private static bool ContainsReadableBestiarySearchText(string text)
@@ -636,32 +612,28 @@ public partial class Main
 
     private bool TryGetBestiaryObservedSearchRegex(out string observedRegex)
     {
-        observedRegex = null;
-
-        var textElement = TryGetBestiarySearchRegexTextElement();
-        if (!CanReliablyReadBestiarySearchRegexText(textElement))
-        {
-            return false;
-        }
-
-        observedRegex = GetBestiarySearchRegexReadCandidates(textElement)
+        observedRegex = GetBestiarySearchRegexReadCandidates()
             .Where(ContainsReadableBestiarySearchText)
             .Distinct(StringComparer.Ordinal)
+            .OrderByDescending(text => text.Length)
             .FirstOrDefault();
         return !string.IsNullOrWhiteSpace(observedRegex);
     }
 
-    private static string TryInvokeMethodAsString(object instance, string methodName, params object[] args)
+    private string DescribeBestiarySearchRegexReadState()
     {
-        try
+        var candidates = GetBestiarySearchRegexReadCandidates()
+            .Take(6)
+            .Select(text => $"'{text}'");
+        var candidateSummary = string.Join(", ", candidates);
+        if (string.IsNullOrWhiteSpace(candidateSummary))
         {
-            var types = args?.Select(arg => arg?.GetType() ?? typeof(object)).ToArray() ?? Array.Empty<Type>();
-            return instance?.GetType().GetMethod(methodName, types)?.Invoke(instance, args)?.ToString();
+            candidateSummary = "none";
         }
-        catch
-        {
-            return null;
-        }
+
+        var fixedElement = TryGetBestiaryElementWithinResolvedPanel(BestiarySearchRegexTextPath);
+        var focusElement = TryGetBestiarySearchRegexFocusElement();
+        return $"focus={DescribeElement(focusElement)}, fixed={DescribeElement(fixedElement)}, path={DescribePath(BestiarySearchRegexTextPath)}, pathTrace={DescribePathLookup(GameController?.IngameState?.IngameUi?.ChallengesPanel, BestiarySearchRegexTextPath)}, candidates={candidateSummary}";
     }
 
     private async Task ApplyBestiarySearchRegexAsync(string regex)
@@ -691,39 +663,23 @@ public partial class Main
         ReleaseAutomationModifierKeys();
         ImGui.SetClipboardText(regex);
 
-        var openedSearchWithHotkey = await EnsureBestiarySearchRegexInputReadyAsync(allowHotkeyFallback: true);
-        await ClearBestiarySearchRegexInputAsync(focusInput: false);
-
-        var searchTextElement = TryGetBestiarySearchRegexTextElement();
-        var observedRegex = await PasteBestiarySearchRegexAsync(regex, focusInput: false);
-        if (!string.Equals(observedRegex, regex, StringComparison.Ordinal))
+        string observedRegex = null;
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
-            if (!CanReliablyReadBestiarySearchRegexText(searchTextElement))
-            {
-                LogDebug($"Bestiary search regex readback unavailable after paste. continuing without strict verification. expected='{regex}', observed='{observedRegex ?? "<null>"}', path={DescribePath(BestiarySearchRegexTextPath)}, pathTrace={DescribePathLookup(GameController?.IngameState?.IngameUi?.ChallengesPanel, BestiarySearchRegexTextPath)}, element={DescribeElement(searchTextElement)}");
-            }
-            else
-            {
-                LogDebug($"Bestiary search regex mismatch after paste attempt 1. retrying after clearing input. expected='{regex}', observed='{observedRegex ?? "<null>"}', path={DescribePath(BestiarySearchRegexTextPath)}, pathTrace={DescribePathLookup(GameController?.IngameState?.IngameUi?.ChallengesPanel, BestiarySearchRegexTextPath)}, element={DescribeElement(searchTextElement)}");
+            await EnsureBestiarySearchRegexInputReadyAsync();
 
-                if (!openedSearchWithHotkey)
-                {
-                    openedSearchWithHotkey = await EnsureBestiarySearchRegexInputReadyAsync(allowHotkeyFallback: true, forceHotkey: true);
-                }
-
-                await ClearBestiarySearchRegexInputAsync(focusInput: false);
-                observedRegex = await PasteBestiarySearchRegexAsync(regex, focusInput: false);
-                if (!string.Equals(observedRegex, regex, StringComparison.Ordinal))
-                {
-                    LogDebug($"Bestiary search regex mismatch after paste attempt 2. expected='{regex}', observed='{observedRegex ?? "<null>"}', path={DescribePath(BestiarySearchRegexTextPath)}, pathTrace={DescribePathLookup(GameController?.IngameState?.IngameUi?.ChallengesPanel, BestiarySearchRegexTextPath)}, element={DescribeElement(searchTextElement)}");
-                    throw new InvalidOperationException("Bestiary search regex did not match the configured value after paste.");
-                }
+            observedRegex = await PasteBestiarySearchRegexAsync(regex);
+            if (string.Equals(observedRegex, regex, StringComparison.Ordinal))
+            {
+                await TapKeyAsync(Keys.Enter, timing.KeyTapDelayMs, timing.FastPollDelayMs);
+                await WaitForBestiaryDisplayedBeastsToStabilizeAsync();
+                return;
             }
+
+            LogDebug($"Bestiary search regex strict confirmation failed after attempt {attempt}/3. expected='{regex}', observed='{observedRegex ?? "<null>"}'. {DescribeBestiarySearchRegexReadState()}");
         }
 
-        await TapKeyAsync(Keys.Enter, timing.KeyTapDelayMs, timing.FastPollDelayMs);
-        await DelayForUiCheckAsync(100);
-        await WaitForBestiaryDisplayedBeastsToStabilizeAsync();
+        throw new InvalidOperationException($"Bestiary search regex did not match the configured value after 3 attempts. Observed '{observedRegex ?? "<null>"}'.");
     }
 
     #endregion
@@ -745,7 +701,6 @@ public partial class Main
             missingPositionStatus: null,
             hoverFailureStatus: null,
             MouseButtons.Left,
-            timing.UiClickPreDelayMs,
             timing.MinTabClickPostDelayMs,
             modifierKeys: [Keys.LControlKey]);
         if (clicked)

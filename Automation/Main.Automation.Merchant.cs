@@ -213,7 +213,7 @@ public partial class Main
 
     private async Task<bool> EnsureFaustusMerchantPanelOpenAsync()
     {
-        return await EnsureAbortableAutomationOpenAsync(
+        return await EnsureAutomationOpenWithRetryAsync(
             () => GetOfflineMerchantPanel()?.IsVisible == true,
             4000,
             AutomationTiming.StashOpenPollDelayMs,
@@ -221,7 +221,7 @@ public partial class Main
             {
                 if (await WaitForBestiaryConditionAsync(() => GetOfflineMerchantPanel()?.IsVisible == true, 400, 25))
                 {
-                    return false;
+                    return AutomationOpenRetryResult.Continue;
                 }
 
                 if (!await TryAdvanceWorldEntityOpenStepAsync(
@@ -237,11 +237,11 @@ public partial class Main
                         null,
                         CtrlAltClickWorldEntityAsync))
                 {
-                    return true;
+                    return AutomationOpenRetryResult.Abort;
                 }
 
                 await WaitForBestiaryConditionAsync(() => GetOfflineMerchantPanel()?.IsVisible == true, 1000, 25);
-                return false;
+                return AutomationOpenRetryResult.Continue;
             });
     }
 
@@ -271,7 +271,6 @@ public partial class Main
             "Could not find a clickable world position for Faustus.",
             "Could not hover Faustus.",
             MouseButtons.Left,
-            AutomationTiming.UiClickPreDelayMs,
             AutomationTiming.OpenStashPostClickDelayMs,
             AutomationTiming.KeyTapDelayMs,
             Keys.LControlKey,
@@ -474,8 +473,7 @@ public partial class Main
 
     private static string GetOfflineMerchantShopTabName(Element tabElement)
     {
-        return TryGetChildFromIndicesQuietly(tabElement, OfflineMerchantShopTabTextPath)?.Text?.Trim()
-               ?? TryGetPropertyValueAsString(TryGetChildFromIndicesQuietly(tabElement, OfflineMerchantShopTabTextPath), "Text")?.Trim();
+        return TryGetAutomationElementText(TryGetChildFromIndicesQuietly(tabElement, OfflineMerchantShopTabTextPath));
     }
 
     private IList<NormalInventoryItem> GetVisibleOfflineMerchantInventoryItems()
@@ -688,9 +686,7 @@ public partial class Main
             return null;
         }
 
-        return textElement.Text?.Trim()
-               ?? TryGetPropertyValueAsString(textElement, "Text")?.Trim()
-               ?? GetElementTextRecursive(textElement, 1)?.Trim();
+        return TryGetAutomationElementText(textElement, 1);
     }
 
     private async Task<string> WaitForMerchantPopupEnteredPriceTextAsync(string expectedText, int timeoutMs)

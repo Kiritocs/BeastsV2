@@ -8,6 +8,13 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 15, 1,
+            "Automation -> Timing -> Lock User Input During Automation should no longer leave your mouse feeling slow after automation finishes.",
+            "Automation -> Stash & Map Device restock is now better at finding and opening your stash.",
+            "Automation -> Stash & Map Device restock is now better at finding and opening your map device.",
+            "Automation is now better at clicking crowded hideout labels when several things are stacked on top of each other.",
+            "Automation is now better at clicking hideout objects while your character is still finishing a move.",
+            "Applying Bestiary Regex should now be more reliable."),
         new(2026, 04, 12, 6,
             "Analytics Web Server -> Map History, Saved Sessions, and Price Feed times now all follow Windows regional time settings so analytics timestamps stay consistent everywhere.",
             "Analytics Web Server -> Saved Sessions now keeps SessionId stable for current plugin run, gives each saved file its own SaveId for load/unload/delete/export/compare actions, and requires explicit SaveId metadata.",
