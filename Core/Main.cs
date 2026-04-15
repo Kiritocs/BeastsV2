@@ -38,8 +38,10 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private readonly HashSet<long> _countedRareBeastIds = new();
     private readonly HashSet<long> _capturedBeastIds = new();
     private readonly Dictionary<long, Entity> _trackedBeastEntities = new();
+    private readonly Dictionary<long, TrackedBeastMapMarkerInfo> _trackedBeastMapMarkerCache = new();
     private readonly Dictionary<string, string> _trackedBeastNameCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<TrackedBeastRenderInfo> _trackedBeastRenderBuffer = new();
+    private readonly List<TrackedBeastMapMarkerInfo> _trackedBeastMapMarkerBuffer = new();
     private readonly List<string> _analyticsLineBuffer = new();
     private readonly Dictionary<string, int> _valuableBeastCounts = AllRedBeasts.ToDictionary(x => x.Name, _ => 0);
     private readonly Dictionary<string, int> _currentMapValuableBeastCounts = new(StringComparer.OrdinalIgnoreCase);
@@ -147,6 +149,13 @@ public partial class Main : BaseSettingsPlugin<Settings>
                area?.Name.EqualsIgnoreCase(MenagerieAreaName) == true;
     }
 
+    private static bool IsOverlayHideInHideoutArea(AreaInstance area)
+    {
+        return area?.IsTown == true ||
+               area?.IsPeaceful == true ||
+               IsHideoutLikeArea(area);
+    }
+
     private static bool IsRunnableMapArea(AreaInstance area)
     {
         return area is { IsTown: false } && !IsHideoutLikeArea(area);
@@ -233,6 +242,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var now = DateTime.UtcNow;
 
         _trackedBeastEntities.Clear();
+    _trackedBeastMapMarkerCache.Clear();
         _routeNeedsRegen = true;
         CancelBeastPaths();
         PauseCurrentMapTimer(now);
@@ -269,7 +279,15 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
     public override void EntityRemoved(Entity entity)
     {
+        if (!_capturedBeastIds.Contains(entity.Id) &&
+            _trackedBeastMapMarkerCache.TryGetValue(entity.Id, out var markerInfo) &&
+            markerInfo.CaptureState == BeastCaptureState.Capturing)
+        {
+            MarkTrackedBeastCaptured(entity.Id, markerInfo.BeastName, DateTime.UtcNow);
+        }
+
         _trackedBeastEntities.Remove(entity.Id);
+        _trackedBeastMapMarkerCache.Remove(entity.Id);
     }
 
     private void TrackBeastCaptureStates()
@@ -286,11 +304,17 @@ public partial class Main : BaseSettingsPlugin<Settings>
             if (GetBeastCaptureState(entity) != BeastCaptureState.Captured) continue;
             if (!TryGetTrackedBeastNameCached(entity.Metadata, out var beastName)) continue;
 
-            _capturedBeastIds.Add(id);
-            _currentMapValuableBeastCapturedCounts[beastName] =
-                _currentMapValuableBeastCapturedCounts.TryGetValue(beastName, out var prev) ? prev + 1 : 1;
-            RegisterCurrentMapReplayCaptured(id, beastName, DateTime.UtcNow);
+            MarkTrackedBeastCaptured(id, beastName, DateTime.UtcNow);
         }
+    }
+
+    private void MarkTrackedBeastCaptured(long entityId, string beastName, DateTime now)
+    {
+        _capturedBeastIds.Add(entityId);
+        _trackedBeastMapMarkerCache.Remove(entityId);
+        _currentMapValuableBeastCapturedCounts[beastName] =
+            _currentMapValuableBeastCapturedCounts.TryGetValue(beastName, out var prev) ? prev + 1 : 1;
+        RegisterCurrentMapReplayCaptured(entityId, beastName, now);
     }
 
     private IReadOnlyList<TrackedBeastRenderInfo> CollectTrackedBeastRenderInfo()
@@ -301,21 +325,112 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         foreach (var (_, entity) in _trackedBeastEntities)
         {
-            if (!entity.IsValid) continue;
-            if (!TryGetTrackedBeastNameCached(entity.Metadata, out var beastName)) continue;
-            if (showEnabledOnly && !enabledBeasts.Contains(beastName)) continue;
+            if (!TryBuildTrackedBeastRenderInfo(entity, out var renderInfo)) continue;
 
-            var positioned = entity.GetComponent<Positioned>();
-            if (positioned == null) continue;
+            CacheTrackedBeastMapMarker(renderInfo);
 
-            _trackedBeastRenderBuffer.Add(new TrackedBeastRenderInfo(
-                entity,
-                positioned,
-                beastName,
-                GetBeastCaptureState(entity)));
+            if (showEnabledOnly && !enabledBeasts.Contains(renderInfo.BeastName)) continue;
+
+            _trackedBeastRenderBuffer.Add(renderInfo);
         }
 
         return _trackedBeastRenderBuffer;
+    }
+
+    private IReadOnlyList<TrackedBeastMapMarkerInfo> CollectTrackedBeastMapMarkerInfo(IReadOnlyList<TrackedBeastRenderInfo> liveTrackedBeasts)
+    {
+        _trackedBeastMapMarkerBuffer.Clear();
+        var showEnabledOnly = Settings.MapRender.ShowEnabledOnly.Value;
+        var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
+        var seenEntityIds = new HashSet<long>();
+
+        foreach (var beast in liveTrackedBeasts)
+        {
+            _trackedBeastMapMarkerBuffer.Add(new TrackedBeastMapMarkerInfo(
+                beast.Entity.Id,
+                new Vector2(beast.Positioned.GridPosNum.X, beast.Positioned.GridPosNum.Y),
+                beast.BeastName,
+                beast.CaptureState));
+            seenEntityIds.Add(beast.Entity.Id);
+        }
+
+        foreach (var markerInfo in _trackedBeastMapMarkerCache.Values)
+        {
+            if (showEnabledOnly && !enabledBeasts.Contains(markerInfo.BeastName)) continue;
+            if (!seenEntityIds.Add(markerInfo.EntityId)) continue;
+            _trackedBeastMapMarkerBuffer.Add(markerInfo);
+        }
+
+        return _trackedBeastMapMarkerBuffer;
+    }
+
+    private bool TryBuildTrackedBeastRenderInfo(Entity entity, out TrackedBeastRenderInfo renderInfo)
+    {
+        renderInfo = default;
+
+        if (entity?.IsValid != true) return false;
+        if (!TryGetTrackedBeastNameCached(entity.Metadata, out var beastName)) return false;
+
+        var positioned = entity.GetComponent<Positioned>();
+        if (positioned == null) return false;
+
+        renderInfo = new TrackedBeastRenderInfo(
+            entity,
+            positioned,
+            beastName,
+            GetBeastCaptureState(entity));
+        return true;
+    }
+
+    private void CacheTrackedBeastMapMarker(TrackedBeastRenderInfo renderInfo)
+    {
+        if (renderInfo.CaptureState == BeastCaptureState.Captured)
+        {
+            _trackedBeastMapMarkerCache.Remove(renderInfo.Entity.Id);
+            return;
+        }
+
+        if (renderInfo.CaptureState == BeastCaptureState.Capturing)
+        {
+            ResolveSupersededCapturingBeasts(renderInfo.Entity.Id, DateTime.UtcNow);
+        }
+
+        var gridPos = renderInfo.Positioned.GridPosNum;
+        _trackedBeastMapMarkerCache[renderInfo.Entity.Id] = new TrackedBeastMapMarkerInfo(
+            renderInfo.Entity.Id,
+            new Vector2(gridPos.X, gridPos.Y),
+            renderInfo.BeastName,
+            renderInfo.CaptureState);
+    }
+
+    private void ResolveSupersededCapturingBeasts(long activeEntityId, DateTime now)
+    {
+        if (_trackedBeastMapMarkerCache.Count == 0)
+        {
+            return;
+        }
+
+        List<TrackedBeastMapMarkerInfo> supersededCapturingBeasts = null;
+
+        foreach (var markerInfo in _trackedBeastMapMarkerCache.Values)
+        {
+            if (markerInfo.EntityId == activeEntityId) continue;
+            if (markerInfo.CaptureState != BeastCaptureState.Capturing) continue;
+            if (_capturedBeastIds.Contains(markerInfo.EntityId)) continue;
+
+            supersededCapturingBeasts ??= new List<TrackedBeastMapMarkerInfo>();
+            supersededCapturingBeasts.Add(markerInfo);
+        }
+
+        if (supersededCapturingBeasts == null)
+        {
+            return;
+        }
+
+        foreach (var markerInfo in supersededCapturingBeasts)
+        {
+            MarkTrackedBeastCaptured(markerInfo.EntityId, markerInfo.BeastName, now);
+        }
     }
 
     public override void Render()
@@ -354,7 +469,13 @@ public partial class Main : BaseSettingsPlugin<Settings>
             trackedBeasts = CollectTrackedBeastRenderInfo();
         }
 
-        RenderMapOverlays(mapRender, trackedBeasts);
+        IReadOnlyList<TrackedBeastMapMarkerInfo> trackedBeastMapMarkers = Array.Empty<TrackedBeastMapMarkerInfo>();
+        if (mapRender.ShowTrackedBeastsWindow.Value || (mapRender.ShowBeastsOnMap.Value && IsLargeMapVisible()))
+        {
+            trackedBeastMapMarkers = CollectTrackedBeastMapMarkerInfo(trackedBeasts);
+        }
+
+        RenderMapOverlays(mapRender, trackedBeasts, trackedBeastMapMarkers);
 
         RenderPriceOverlays(mapRender);
 
@@ -363,16 +484,19 @@ public partial class Main : BaseSettingsPlugin<Settings>
         RenderAutomationStatusOverlay();
     }
 
-    private void RenderMapOverlays(MapRenderSettings mapRender, IReadOnlyList<TrackedBeastRenderInfo> trackedBeasts)
+    private void RenderMapOverlays(
+        MapRenderSettings mapRender,
+        IReadOnlyList<TrackedBeastRenderInfo> trackedBeasts,
+        IReadOnlyList<TrackedBeastMapMarkerInfo> trackedBeastMapMarkers)
     {
         if (mapRender.ShowBeastLabelsInWorld.Value && trackedBeasts.Count > 0)
         {
             DrawInWorldBeasts(trackedBeasts);
         }
 
-        if (ShouldDrawLargeMapOverlay(mapRender, trackedBeasts.Count > 0) && IsLargeMapVisible())
+        if (ShouldDrawLargeMapOverlay(mapRender, trackedBeastMapMarkers.Count > 0) && IsLargeMapVisible())
         {
-            DrawBeastsOnLargeMap(trackedBeasts);
+            DrawBeastsOnLargeMap(trackedBeastMapMarkers);
         }
 
         if (mapRender.ShowStylePreviewWindow.Value)
@@ -380,9 +504,9 @@ public partial class Main : BaseSettingsPlugin<Settings>
             DrawMapRenderStylePreviewWindow();
         }
 
-        if (mapRender.ShowTrackedBeastsWindow.Value && trackedBeasts.Count > 0)
+        if (mapRender.ShowTrackedBeastsWindow.Value && trackedBeastMapMarkers.Count > 0)
         {
-            DrawTrackedBeastsWindow(trackedBeasts);
+            DrawTrackedBeastsWindow(trackedBeastMapMarkers);
         }
     }
 
@@ -704,6 +828,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
             if (entity.IsValid && TryGetTrackedBeastNameCached(entity.Metadata, out var beastName))
             {
                 _capturedBeastIds.Add(id);
+                _trackedBeastMapMarkerCache.Remove(id);
                 RegisterCurrentMapReplayCaptured(id, beastName, DateTime.UtcNow);
             }
         }
@@ -737,7 +862,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
     private void UpdateRenderCounterState()
     {
-        if (Settings?.Visibility?.HideInHideout?.Value == true && IsHideoutLikeArea(GameController?.Area?.CurrentArea))
+        if (Settings?.Visibility?.HideInHideout?.Value == true && IsOverlayHideInHideoutArea(GameController?.Area?.CurrentArea))
         {
             _renderAllBeastsFound = false;
             _renderAllTrackedValuableBeastsCaptured = false;
@@ -785,16 +910,15 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private bool AreAllTrackedValuableBeastsCaptured()
     {
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
-        var tracked = _trackedBeastEntities.Values
-            .Where(e => e?.IsValid == true)
-            .Where(e => TryGetTrackedBeastNameCached(e.Metadata, out var name) &&
-                        (enabledBeasts.Count == 0 || enabledBeasts.Contains(name)))
-            .ToList();
+        var relevantFound = _currentMapValuableBeastCounts
+            .Where(kvp => enabledBeasts.Count == 0 || enabledBeasts.Contains(kvp.Key))
+            .Sum(kvp => kvp.Value);
 
-        if (tracked.Count == 0 && enabledBeasts.Count > 0)
-            return _currentMapBeastsFound > 0;
+        var relevantCaptured = _currentMapValuableBeastCapturedCounts
+            .Where(kvp => enabledBeasts.Count == 0 || enabledBeasts.Contains(kvp.Key))
+            .Sum(kvp => kvp.Value);
 
-        return tracked.All(e => GetBeastCaptureState(e) == BeastCaptureState.Captured);
+        return relevantCaptured >= relevantFound;
     }
 
     private void HandleBestiaryClipboardAutoCopy()

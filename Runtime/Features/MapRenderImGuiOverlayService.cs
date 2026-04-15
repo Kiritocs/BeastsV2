@@ -68,7 +68,7 @@ internal sealed class MapRenderImGuiOverlayService
         ImGui.End();
     }
 
-    public void DrawTrackedBeastsWindow(IReadOnlyList<TrackedBeastRenderInfo> beasts)
+    public void DrawTrackedBeastsWindow(IReadOnlyList<TrackedBeastMapMarkerInfo> beasts)
     {
         if (beasts.Count == 0)
         {

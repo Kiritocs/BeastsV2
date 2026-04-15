@@ -76,16 +76,14 @@ internal sealed class MapRenderBeastOverlayService
         }
     }
 
-    public void DrawBeastMarkersOnMap(Vector2 mapCenter, IReadOnlyList<TrackedBeastRenderInfo> beasts, Vector2 playerGridPos, float playerHeight, float[][] heightData)
+    public void DrawBeastMarkersOnMap(Vector2 mapCenter, IReadOnlyList<TrackedBeastMapMarkerInfo> beasts, Vector2 playerGridPos, float playerHeight, float[][] heightData)
     {
         foreach (var beast in beasts)
         {
-            var gridPos = beast.Positioned.GridPosNum;
+            var gridPos = beast.GridPos;
             BeastsV2Helpers.TryGetTerrainHeight(heightData, (int)gridPos.X, (int)gridPos.Y, out var beastHeight);
 
-            var mapDelta = _callbacks.TranslateGridDeltaToMapDelta(
-                new Vector2(gridPos.X, gridPos.Y) - playerGridPos,
-                playerHeight + beastHeight);
+            var mapDelta = _callbacks.TranslateGridDeltaToMapDelta(gridPos - playerGridPos, playerHeight + beastHeight);
             _callbacks.DrawMapMarker(beast.BeastName, beast.CaptureState, mapCenter + mapDelta);
         }
     }

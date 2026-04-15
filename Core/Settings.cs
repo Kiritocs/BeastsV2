@@ -302,7 +302,7 @@ public class ChangelogSettings
 [Submenu(CollapsedByDefault = true)]
 public class VisibilitySettings
 {
-    [Menu("Hide Counter & Message In Hideout", "Hide the beast counter and completed message while you are inside your hideout.")]
+    [Menu("Hide Counter & Message In Hideout", "Hide the beast counter and completed message while you are inside your hideout, town, or another peaceful area.")]
     public ToggleNode HideInHideout { get; set; } = new(true);
 
     [Menu("Hide Counter & Message On Fullscreen Panels", "Hide the beast counter and completed message when a fullscreen panel like the Atlas or Passive Tree is open.")]
@@ -320,7 +320,7 @@ public class VisibilitySettings
     [Menu("Hide Analytics On Open Right Panel", "Hide the analytics overlay when a right-side panel like inventory or stash is open.")]
     public ToggleNode HideAnalyticsOnOpenRightPanel { get; set; } = new(true);
     
-    [Menu("Hide Analytics In Hideout", "Hide the analytics overlay while you are inside your hideout. Disable this if you want analytics to remain visible there.")]
+    [Menu("Hide Analytics In Hideout", "Hide the analytics overlay while you are inside your hideout, town, or another peaceful area. Disable this if you want analytics to remain visible there.")]
     public ToggleNode HideAnalyticsInHideout { get; set; } = new(true);
 }
 

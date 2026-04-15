@@ -8,6 +8,10 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 15, 1,
+            "Tracking: Markers & Prices -> Show Large Map Labels and Show Tracked Beasts Window now show tracked beasts after they leave the network bubble or move out of vision.",
+            "Tracking now auto-counts an older cached capturing beast as captured when a newer beast enters capturing state.",
+            "Overlays -> Visibility -> Hide Counter & Message In Hideout and Hide Analytics In Hideout now also treat towns and other peaceful areas like hideout visibility zones."),
         new(2026, 04, 12, 6,
             "Analytics Web Server -> Map History, Saved Sessions, and Price Feed times now all follow Windows regional time settings so analytics timestamps stay consistent everywhere.",
             "Analytics Web Server -> Saved Sessions now keeps SessionId stable for current plugin run, gives each saved file its own SaveId for load/unload/delete/export/compare actions, and requires explicit SaveId metadata.",

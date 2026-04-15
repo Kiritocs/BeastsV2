@@ -14,7 +14,7 @@ public partial class Main
         if (ingameUi == null) return;
 
         var visibility = Settings.Visibility;
-        var isHideoutLikeArea = IsHideoutLikeArea(GameController.Area?.CurrentArea);
+        var isHideoutLikeArea = IsOverlayHideInHideoutArea(GameController.Area?.CurrentArea);
         var counterWindow = Settings.CounterWindow;
         if (counterWindow.CompletedStyle.ShowWhileNotComplete.Value ||
             counterWindow.CompletedMessage.ShowWhileNotComplete.Value ||
