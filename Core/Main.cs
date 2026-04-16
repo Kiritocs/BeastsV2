@@ -242,7 +242,6 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var now = DateTime.UtcNow;
 
         _trackedBeastEntities.Clear();
-    _trackedBeastMapMarkerCache.Clear();
         _routeNeedsRegen = true;
         CancelBeastPaths();
         PauseCurrentMapTimer(now);
@@ -251,6 +250,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         if (decision.ShouldFinalizePreviousMap)
         {
+            _trackedBeastMapMarkerCache.Clear();
             FinalizeCurrentMapAnalytics(decision.PreviousAreaHash, decision.PreviousAreaName, now);
             FinalizePausedMap();
             AutoSaveSessionSnapshotToFile();
@@ -261,6 +261,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
             return;
         }
 
+        _trackedBeastMapMarkerCache.Clear();
         ResetCurrentMapAnalytics();
         BeginCurrentMapCostTrackingFromPrepared();
         ResetCounter();
@@ -881,12 +882,17 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         var allTrackedValuableBeastsCaptured = false;
         var missionComplete = _isCurrentAreaTrackable && IsBeastQuestMissionComplete();
+        var hasLiveUncapturedTrackedValuableBeast = HasLiveUncapturedTrackedValuableBeast();
+        var hasCachedUncapturedTrackedValuableBeast = HasCachedUncapturedTrackedValuableBeast();
         if (allBeastsFound || _currentMapWasComplete)
         {
-            allTrackedValuableBeastsCaptured = AreAllTrackedValuableBeastsCaptured();
+            allTrackedValuableBeastsCaptured =
+                !hasLiveUncapturedTrackedValuableBeast &&
+                !hasCachedUncapturedTrackedValuableBeast &&
+                AreAllTrackedValuableBeastsCaptured();
         }
 
-        if (missionComplete)
+        if (missionComplete && !hasLiveUncapturedTrackedValuableBeast)
         {
             if (!_currentMapWasComplete)
             {
@@ -905,6 +911,38 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         _renderAllBeastsFound = allBeastsFound || _currentMapWasComplete;
         _renderAllTrackedValuableBeastsCaptured = _renderAllBeastsFound && allTrackedValuableBeastsCaptured;
+    }
+
+    private bool HasLiveUncapturedTrackedValuableBeast()
+    {
+        var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
+
+        foreach (var (id, entity) in _trackedBeastEntities)
+        {
+            if (entity?.IsValid != true) continue;
+            if (!TryGetTrackedBeastNameCached(entity.Metadata, out var beastName)) continue;
+            if (enabledBeasts.Count > 0 && !enabledBeasts.Contains(beastName)) continue;
+            if (GetBeastCaptureState(entity) == BeastCaptureState.Captured) continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool HasCachedUncapturedTrackedValuableBeast()
+    {
+        var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
+
+        foreach (var markerInfo in _trackedBeastMapMarkerCache.Values)
+        {
+            if (markerInfo.CaptureState == BeastCaptureState.Captured) continue;
+            if (enabledBeasts.Count > 0 && !enabledBeasts.Contains(markerInfo.BeastName)) continue;
+
+            return true;
+        }
+
+        return false;
     }
 
     private bool AreAllTrackedValuableBeastsCaptured()
