@@ -17,6 +17,7 @@ namespace BeastsV2;
 public partial class Main
 {
     private sealed record FragmentScarabTabResolution(Element ScarabTab, int Attempts, bool Aborted);
+    private const string WorldStashMetadataMarker = "MiscellaneousObjects/Stash";
 
     #region Stash interaction
 
@@ -26,17 +27,55 @@ public partial class Main
     private async Task<bool> EnsureStashOpenForAutomationAsync()
     {
         var timing = AutomationTiming;
-        return await EnsurePollingAutomationOpenAsync(
+        return await EnsureAutomationOpenWithRetryAsync(
             IsAutomationStashVisible,
-            () => TryAdvanceWorldEntityOpenStepAsync(
-                () => FindNearestAutomationEntity(entity => entity.Type == EntityType.Stash, requireVisible: true),
-                () => FindNearestAutomationEntity(entity => entity.Type == EntityType.Stash, requireVisible: false),
-                "stash",
-                "stash",
-                "Could not find a stash in the current area.",
-                "Could not navigate to the stash.",
-                ClickStashEntityAsync),
-            timing.StashOpenPollDelayMs);
+            4000,
+            timing.StashOpenPollDelayMs,
+            async () =>
+            {
+                if (await WaitForBestiaryConditionAsync(IsAutomationStashVisible, 400, 25))
+                {
+                    return AutomationOpenRetryResult.Continue;
+                }
+
+                if (!await TryAdvanceWorldEntityOpenStepAsync(
+                        () => FindNearestAutomationStashEntity(requireVisible: true),
+                        () => FindNearestAutomationStashEntity(requireVisible: false),
+                        "stash",
+                        "stash",
+                        "Could not find a stash in the current area.",
+                        "Could not navigate to the stash.",
+                        ClickStashEntityAsync))
+                {
+                    return AutomationOpenRetryResult.Abort;
+                }
+
+                await WaitForBestiaryConditionAsync(IsAutomationStashVisible, 1000, 25);
+                return AutomationOpenRetryResult.Continue;
+            },
+            "Timed out opening the stash.");
+    }
+
+    private Entity FindNearestAutomationStashEntity(bool requireVisible)
+    {
+        return FindNearestAutomationEntity(IsAutomationStashEntity, requireVisible);
+    }
+
+    private static bool IsAutomationStashEntity(Entity entity)
+    {
+        if (entity?.Type == EntityType.Stash)
+        {
+            return true;
+        }
+
+        var metadata = entity?.Metadata;
+        if (!string.IsNullOrWhiteSpace(metadata) && metadata.IndexOf(WorldStashMetadataMarker, StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return true;
+        }
+
+        var path = entity?.Path;
+        return !string.IsNullOrWhiteSpace(path) && path.IndexOf(WorldStashMetadataMarker, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private async Task<bool> ClickStashEntityAsync(Entity stashEntity, string statusMessage)
@@ -49,7 +88,6 @@ public partial class Main
             "Could not find a clickable stash position.",
             "Could not hover the stash.",
             MouseButtons.Left,
-            timing.UiClickPreDelayMs,
             timing.OpenStashPostClickDelayMs);
     }
 

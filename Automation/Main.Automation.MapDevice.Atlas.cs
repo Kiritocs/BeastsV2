@@ -12,6 +12,8 @@ namespace BeastsV2;
 
 public partial class Main
 {
+    private const string HideoutMapDeviceMetadataMarker = "MappingDevice";
+
     private async Task CloseMapDeviceBlockingUiAsync()
     {
         await CloseBlockingUiWithSpaceAsync(IsAutomationBlockingUiOpen, "map device automation", MapDeviceCloseUiMaxAttempts, throwOnFailure: true);
@@ -37,17 +39,12 @@ public partial class Main
         }
 
         var timing = AutomationTiming;
-        return await EnsureAbortableAutomationOpenAsync(
-            () => IsMapDeviceWindowOpenReadyForAutomation(),
+        return await EnsureAutomationOpenWithRetryAsync(
+            IsMapDeviceWindowOpenReadyForAutomation,
             MapDeviceOpenTimeoutMs,
             timing.StashOpenPollDelayMs,
             async () =>
             {
-                if (await WaitForBestiaryConditionAsync(() => GameController?.IngameState?.IngameUi?.Atlas?.IsVisible == true, 400, 25))
-                {
-                    return false;
-                }
-
                 ui = GameController?.IngameState?.IngameUi;
                 if (ui?.Atlas?.IsVisible == true)
                 {
@@ -55,43 +52,32 @@ public partial class Main
                     {
                         if (await EnsureConfiguredMapDeviceWindowStateAsync())
                         {
-                            return false;
+                            return AutomationOpenRetryResult.Success;
                         }
 
-                        return false;
+                        return AutomationOpenRetryResult.Continue;
                     }
 
                     if (IsSpecificMapSelectionConfigured())
                     {
                         LogDebug("Atlas is visible without Map Device window; continuing because a specific map is configured.");
-                        return false;
+                        return AutomationOpenRetryResult.Success;
                     }
 
                     UpdateAutomationStatus("Atlas opened, but the Map Device window is not visible.");
-                    return true;
+                    return AutomationOpenRetryResult.Abort;
                 }
 
-                if (!await TryAdvanceWorldEntityOpenStepAsync(
-                        () => FindNearestAutomationEntity(
-                            entity => entity.Metadata.EqualsIgnoreCase(HideoutMapDeviceMetadata),
-                            requireVisible: true),
-                        () => FindNearestAutomationEntity(
-                            entity => entity.Metadata.EqualsIgnoreCase(HideoutMapDeviceMetadata),
-                            requireVisible: false),
-                        HideoutMapDeviceName,
-                        "Map Device",
-                        "Could not find a Map Device in the current area.",
-                        "Could not navigate to the Map Device.",
-                        ClickMapDeviceEntityAsync))
+                if (!await TryOpenMapDeviceFromWorldAsync())
                 {
-                    return true;
+                    return AutomationOpenRetryResult.Continue;
                 }
 
                 await WaitForBestiaryConditionAsync(
                     () => GameController?.IngameState?.IngameUi?.Atlas?.IsVisible == true,
                     1000,
                     25);
-                return false;
+                return AutomationOpenRetryResult.Continue;
             },
             "Timed out opening the Map Device.");
     }
@@ -132,6 +118,58 @@ public partial class Main
         await TapKeyAsync(Keys.Escape, AutomationTiming.KeyTapDelayMs, AutomationTiming.FastPollDelayMs);
         await DelayForUiCheckAsync(150);
         return false;
+    }
+
+    private async Task<bool> TryOpenMapDeviceFromWorldAsync()
+    {
+        var visibleMapDevice = FindNearestAutomationMapDeviceEntity(requireVisible: true);
+        var mapDeviceEntity = visibleMapDevice ?? FindNearestAutomationMapDeviceEntity(requireVisible: false);
+        if (mapDeviceEntity == null)
+        {
+            UpdateAutomationStatus("Could not find a Map Device in the current area.", forceLog: true);
+            return false;
+        }
+
+        var distance = GetPlayerDistanceToEntity(mapDeviceEntity);
+        var statusMessage = distance.HasValue && distance.Value <= AutomationTiming.StashInteractionDistance
+            ? "Opening Map Device..."
+            : "Moving to Map Device...";
+
+        if (await ClickMapDeviceEntityAsync(mapDeviceEntity, statusMessage))
+        {
+            return true;
+        }
+
+        if (!await NavigateTowardsEntityAsync(mapDeviceEntity, HideoutMapDeviceName, "Moving to Map Device..."))
+        {
+            UpdateAutomationStatus("Could not navigate to the Map Device.", forceLog: true);
+            return false;
+        }
+
+        return true;
+    }
+
+    private Entity FindNearestAutomationMapDeviceEntity(bool requireVisible)
+    {
+        return FindNearestAutomationEntity(IsAutomationMapDeviceEntity, requireVisible);
+    }
+
+    private bool IsAutomationMapDeviceEntity(Entity entity)
+    {
+        if (entity?.IsValid != true)
+        {
+            return false;
+        }
+
+        if (entity.Metadata.EqualsIgnoreCase(HideoutMapDeviceMetadata))
+        {
+            return true;
+        }
+
+        return (!string.IsNullOrWhiteSpace(entity.Metadata) &&
+            entity.Metadata.IndexOf(HideoutMapDeviceMetadataMarker, StringComparison.OrdinalIgnoreCase) >= 0) ||
+               (!string.IsNullOrWhiteSpace(entity.Path) &&
+            entity.Path.IndexOf(HideoutMapDeviceMetadataMarker, StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     private async Task SelectConfiguredMapOnAtlasIfNeededAsync(StashAutomationSettings automation)
@@ -1028,9 +1066,7 @@ public partial class Main
         }
 
         var textElement = TryGetChildAtIndex(container, 0);
-        var mapName = TryGetPropertyValueAsString(textElement, "TextNoTags")?.Trim()
-                      ?? TryGetPropertyValueAsString(textElement, "Text")?.Trim()
-                      ?? TryInvokeGetText(textElement)?.Trim();
+        var mapName = TryGetAutomationElementText(textElement);
 
         return string.IsNullOrWhiteSpace(mapName) ? null : mapName;
     }
@@ -1078,9 +1114,7 @@ public partial class Main
             return null;
         }
 
-        var titleText = TryGetPropertyValueAsString(titleElement, "TextNoTags")?.Trim()
-                        ?? TryGetPropertyValueAsString(titleElement, "Text")?.Trim()
-                        ?? TryInvokeGetText(titleElement)?.Trim();
+        var titleText = TryGetAutomationElementText(titleElement);
 
         return string.IsNullOrWhiteSpace(titleText) ? null : titleText;
     }
@@ -1294,23 +1328,6 @@ public partial class Main
         }
     }
 
-    private static string TryInvokeGetText(object element)
-    {
-        if (element == null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return element.GetType().GetMethod("GetText", [typeof(int)])?.Invoke(element, [16]) as string;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     private async Task<bool> ClickMapDeviceEntityAsync(Entity mapDeviceEntity, string statusMessage)
     {
         var timing = AutomationTiming;
@@ -1321,7 +1338,6 @@ public partial class Main
             "Could not find a clickable Map Device position.",
             "Could not hover the Map Device.",
             MouseButtons.Left,
-            timing.UiClickPreDelayMs,
             timing.OpenStashPostClickDelayMs);
     }
 

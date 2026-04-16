@@ -667,7 +667,6 @@ public partial class Main
         string missingPositionStatus,
         string hoverFailureStatus,
         MouseButtons button,
-        int preClickDelayMs,
         int postClickDelayMs,
         int modifierSettleDelayMs = 0,
         params Keys[] modifierKeys)
@@ -689,6 +688,16 @@ public partial class Main
 
         if (!await HoverWorldEntityAsync(entity, hoverLabel))
         {
+            if (await TryClickWorldEntityLabelDirectlyAsync(
+                    entity,
+                    button,
+                    postClickDelayMs,
+                    modifierSettleDelayMs,
+                    modifierKeys))
+            {
+                return true;
+            }
+
             if (!string.IsNullOrWhiteSpace(hoverFailureStatus))
             {
                 UpdateAutomationStatus(hoverFailureStatus, forceLog: true);
@@ -699,7 +708,43 @@ public partial class Main
 
         await ClickCurrentCursorWithModifiersAsync(
             button,
-            preClickDelayMs,
+            0,
+            postClickDelayMs,
+            modifierSettleDelayMs,
+            configuredClickDelayOverrideMs: null,
+            modifierKeys);
+        return true;
+    }
+
+    private async Task<bool> TryClickWorldEntityLabelDirectlyAsync(
+        Entity entity,
+        MouseButtons button,
+        int postClickDelayMs,
+        int modifierSettleDelayMs = 0,
+        params Keys[] modifierKeys)
+    {
+        var labelCenter = TryGetWorldEntityLabelCenter(entity);
+        if (!labelCenter.HasValue)
+        {
+            return false;
+        }
+
+        var timing = AutomationTiming;
+        SetAutomationCursorPosition(labelCenter.Value);
+        await DelayAutomationAsync(Math.Max(10, timing.FastPollDelayMs));
+
+        var hovered = await WaitForBestiaryConditionAsync(
+            () => IsHoveringEntityLabel(entity),
+            Math.Max(40, timing.UiClickPreDelayMs + timing.FastPollDelayMs),
+            Math.Max(10, timing.FastPollDelayMs));
+        if (!hovered)
+        {
+            LogDebug($"World entity direct label click proceeding without hover confirmation. entity={DescribeEntity(entity)}");
+        }
+
+        await ClickCurrentCursorWithModifiersAsync(
+            button,
+            0,
             postClickDelayMs,
             modifierSettleDelayMs,
             configuredClickDelayOverrideMs: null,
@@ -820,6 +865,44 @@ public partial class Main
         {
             return null;
         }
+    }
+
+    private static string TryInvokeMethodAsString(object instance, string methodName, params object[] args)
+    {
+        try
+        {
+            var types = args?.Select(arg => arg?.GetType() ?? typeof(object)).ToArray() ?? Array.Empty<Type>();
+            return instance?.GetType().GetMethod(methodName, types)?.Invoke(instance, args)?.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string TryGetAutomationElementText(object element, int recursiveDepth = 0)
+    {
+        if (element == null)
+        {
+            return null;
+        }
+
+        var text = TryGetPropertyValueAsString(element, "TextNoTags")?.Trim()
+                   ?? TryInvokeMethodAsString(element, "GetTextWithNoTags", 512)?.Trim()
+                   ?? TryGetPropertyValueAsString(element, "Text")?.Trim();
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        if (element is Element uiElement)
+        {
+            return uiElement.Text?.Trim()
+                   ?? TryGetElementText(uiElement)
+                   ?? (recursiveDepth > 0 ? GetElementTextRecursive(uiElement, recursiveDepth)?.Trim() : null);
+        }
+
+        return TryInvokeMethodAsString(element, "GetText", 16)?.Trim();
     }
 
     private static T TryGetPropertyValue<T>(object instance, string propertyName) where T : class

@@ -108,6 +108,12 @@ internal sealed class AutomationInputLockService : IDisposable
 
         _allowMouseUntilUtcTicks = 0;
         ReleaseCursorClip();
+
+        lock (_hookSync)
+        {
+            Unhook(ref _keyboardHook);
+            Unhook(ref _mouseHook);
+        }
     }
 
     public void AllowAutomationKeys(params Keys[] keys)
