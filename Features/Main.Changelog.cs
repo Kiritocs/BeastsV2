@@ -8,6 +8,9 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 18, 1,
+            "Bestiary tracking now matches beasts using full metadata paths.",
+            "Counter Window and beast map overlays now stay hidden inside Mirage maps."),
         new(2026, 04, 15, 1,
             "Automation -> Timing -> Lock User Input During Automation should no longer leave your mouse feeling slow after automation finishes.",
             "Automation -> Stash & Map Device restock is now better at finding and opening your stash.",

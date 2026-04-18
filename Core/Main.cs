@@ -27,6 +27,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private const string CounterLabel = "Beasts Found";
     private const string MapTimePrefix = "Map Time:";
     private const string BestiaryScarabOfDuplicatingName = "Bestiary Scarab of Duplicating";
+    private const string IsinMirageMapStatKeyPart = "MapMirageChosenWish";
     private const string MissingTrackedBeastName = "\0";
     private const string QuestProgressPattern = @"\((\d+)/(\d+)\)";
     private static readonly GameStat? IsCapturableMonsterStat = TryGetCapturableMonsterStat();
@@ -344,17 +345,18 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var beastPrices = Settings.BeastPrices;
         var mapRender = Settings.MapRender;
         var analyticsWindow = Settings.AnalyticsWindow;
+        var isInMirage = IsinMirage();
 
         TryScheduleAutoPriceRefresh(now, beastPrices);
 
-        var shouldCollectTrackedBeastRenderInfo = ShouldCollectTrackedBeastRenderInfo(mapRender);
+        var shouldCollectTrackedBeastRenderInfo = !isInMirage && ShouldCollectTrackedBeastRenderInfo(mapRender);
         IReadOnlyList<TrackedBeastRenderInfo> trackedBeasts = Array.Empty<TrackedBeastRenderInfo>();
         if (shouldCollectTrackedBeastRenderInfo)
         {
             trackedBeasts = CollectTrackedBeastRenderInfo();
         }
 
-        RenderMapOverlays(mapRender, trackedBeasts);
+        RenderMapOverlays(mapRender, trackedBeasts, isInMirage);
 
         RenderPriceOverlays(mapRender);
 
@@ -363,14 +365,14 @@ public partial class Main : BaseSettingsPlugin<Settings>
         RenderAutomationStatusOverlay();
     }
 
-    private void RenderMapOverlays(MapRenderSettings mapRender, IReadOnlyList<TrackedBeastRenderInfo> trackedBeasts)
+    private void RenderMapOverlays(MapRenderSettings mapRender, IReadOnlyList<TrackedBeastRenderInfo> trackedBeasts, bool isInMirage)
     {
-        if (mapRender.ShowBeastLabelsInWorld.Value && trackedBeasts.Count > 0)
+        if (!isInMirage && mapRender.ShowBeastLabelsInWorld.Value && trackedBeasts.Count > 0)
         {
             DrawInWorldBeasts(trackedBeasts);
         }
 
-        if (ShouldDrawLargeMapOverlay(mapRender, trackedBeasts.Count > 0) && IsLargeMapVisible())
+        if (!isInMirage && ShouldDrawLargeMapOverlay(mapRender, trackedBeasts.Count > 0) && IsLargeMapVisible())
         {
             DrawBeastsOnLargeMap(trackedBeasts);
         }
@@ -380,7 +382,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
             DrawMapRenderStylePreviewWindow();
         }
 
-        if (mapRender.ShowTrackedBeastsWindow.Value && trackedBeasts.Count > 0)
+        if (!isInMirage && mapRender.ShowTrackedBeastsWindow.Value && trackedBeasts.Count > 0)
         {
             DrawTrackedBeastsWindow(trackedBeasts);
         }
@@ -515,6 +517,18 @@ public partial class Main : BaseSettingsPlugin<Settings>
     }
 
     private bool IsLargeMapVisible() => GameController?.IngameState?.IngameUi?.Map?.LargeMap?.IsVisible == true;
+
+    private bool IsinMirage()
+    {
+        var mapStats = GameController?.IngameState?.Data?.MapStats;
+        if (mapStats == null || mapStats.Count == 0)
+        {
+            return false;
+        }
+
+        return mapStats.Any(stat =>
+            stat.Key.ToString().IndexOf(IsinMirageMapStatKeyPart, StringComparison.OrdinalIgnoreCase) >= 0);
+    }
 
     private void DrawCounterAndCompletedMessage()
     {

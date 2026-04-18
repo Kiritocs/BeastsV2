@@ -236,7 +236,7 @@ public partial class Main
 
         foreach (var tracked in AllRedBeasts)
         {
-            if (tracked.MetadataPatterns.Any(pattern => metadata.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0))
+            if (tracked.MetadataPatterns.Any(pattern => string.Equals(metadata, pattern, StringComparison.OrdinalIgnoreCase)))
             {
                 beastName = tracked.Name;
                 _trackedBeastNameCache[metadata] = beastName;
