@@ -598,7 +598,7 @@ public class StashAutomationSettings
         set => _inventoryToggleHotkey = value ?? new(Keys.I);
     }
 
-    [Menu("Atlas Map Selection", "Type the exact map name to select on the Atlas when preparing the Map Device. Leave empty (or use 'open Map') to keep the currently opened map and skip atlas map selection.")]
+    [Menu("Atlas Map Selection", "Choose which Atlas map to click when preparing the Map Device. Select 'open Map' to keep your currently opened map and skip Atlas map selection.")]
     [JsonIgnore]
     public CustomNode MapSelector { get; set; } = new();
 
@@ -675,7 +675,8 @@ public class StashAutomationSettings
             return "open Map";
         }
 
-        return trimmed;
+        var normalized = trimmed.TrimStart('\u2605', ' ', '\u00a0').Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? "open Map" : normalized;
     }
 }
 

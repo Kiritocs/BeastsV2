@@ -203,17 +203,14 @@ public partial class Main
         var mapIndex = await ResolveConfiguredMapIndexAsync(innerAtlas, selectedMap);
         if (!mapIndex.HasValue)
         {
-            var discoveredSummary = _lastHoveredAtlasMapNamesByIndex.Count > 0
-                ? string.Join(", ", _lastHoveredAtlasMapNamesByIndex.OrderBy(x => x.Key).Select(x => $"{x.Key}='{x.Value}'"))
-                : "none";
             throw new InvalidOperationException(
-                $"Configured map '{selectedMap}' was not discovered while hovering atlas children. Hovered maps: {discoveredSummary}.");
+                $"Configured map '{selectedMap}' was not found in AtlasNodes. Choose a map from Automation -> Stash & Map Device -> Atlas Map Selection.");
         }
 
         var selectedMapElement = TryGetChildAtIndex(innerAtlas, mapIndex.Value);
         if (selectedMapElement == null || !TryGetElementIsVisible(selectedMapElement))
         {
-            throw new InvalidOperationException($"Configured map '{selectedMap}' (discovered index {mapIndex.Value}) is not visible in IngameUi.Atlas.InnerAtlas.");
+            throw new InvalidOperationException($"Configured map '{selectedMap}' (Atlas UI index {mapIndex.Value}) is not visible in IngameUi.Atlas.InnerAtlas.");
         }
 
         var mapCenter = TryGetElementCenter(selectedMapElement);
@@ -318,25 +315,56 @@ public partial class Main
 
     private async Task<int?> ResolveConfiguredMapIndexAsync(object innerAtlas, string selectedMap)
     {
-        var cachedIndex = await TryUseCachedConfiguredMapIndexAsync(innerAtlas, selectedMap, invalidateOnMismatch: false);
-        if (cachedIndex.HasValue)
-        {
-            LogDebug($"Skipping atlas pre-scan prep: cached atlas map index for '{selectedMap}' is already valid and visible.");
-            return cachedIndex;
-        }
-
         await PrepareAtlasForMapCheckAsync(innerAtlas, selectedMap);
-
-        cachedIndex = await TryUseCachedConfiguredMapIndexAsync(innerAtlas, selectedMap, invalidateOnMismatch: true);
-        if (cachedIndex.HasValue)
+        var resolvedIndex = TryResolveConfiguredMapUiIndexFromAtlasNodes(innerAtlas, selectedMap);
+        if (resolvedIndex.HasValue)
         {
-            LogDebug($"Atlas map cache became valid after pre-scan prep for '{selectedMap}'.");
-            return cachedIndex;
+            LogDebug($"Resolved atlas map index from AtlasNodes. map='{selectedMap}', uiIndex={resolvedIndex.Value}");
+        }
+        else
+        {
+            LogDebug($"Configured map was not found in AtlasNodes. map='{selectedMap}'");
         }
 
-        var discoveredMapIndices = await DiscoverAtlasMapIndicesByHoverAsync(innerAtlas, selectedMap);
-        RememberDiscoveredAtlasMapIndices(discoveredMapIndices);
-        return discoveredMapIndices.TryGetValue(selectedMap, out var discoveredIndex) ? discoveredIndex : null;
+        return resolvedIndex;
+    }
+
+    private int? TryResolveConfiguredMapUiIndexFromAtlasNodes(object innerAtlas, string selectedMap)
+    {
+        var lookupName = NormalizeAtlasMapName(selectedMap);
+        if (string.IsNullOrWhiteSpace(lookupName))
+        {
+            return null;
+        }
+
+        var nodes = GameController?.Files?.AtlasNodes?.EntriesList;
+        if (nodes == null || nodes.Count <= 0)
+        {
+            return null;
+        }
+
+        const int atlasNodeUiOffset = 2;
+        var limit = Math.Min(nodes.Count, 110);
+        for (var nodeIndex = 0; nodeIndex < limit; nodeIndex++)
+        {
+            var nodeName = NormalizeAtlasMapName(nodes[nodeIndex].Area?.Name);
+            if (string.IsNullOrWhiteSpace(nodeName) || !nodeName.EqualsIgnoreCase(lookupName))
+            {
+                continue;
+            }
+
+            var uiIndex = nodeIndex + atlasNodeUiOffset;
+            var childCount = TryGetElementChildCount(innerAtlas);
+            if (uiIndex >= childCount)
+            {
+                throw new InvalidOperationException(
+                    $"Configured map '{selectedMap}' resolved to AtlasNodes index {nodeIndex}, but UI index {uiIndex} is out of range (childCount={childCount}).");
+            }
+
+            return uiIndex;
+        }
+
+        return null;
     }
 
     private async Task PrepareAtlasForMapCheckAsync(object innerAtlas, string selectedMap)
@@ -590,226 +618,6 @@ public partial class Main
         mouse_event(MouseEventWheel, 0, 0, -wheelAmount, UIntPtr.Zero);
     }
 
-    private async Task<int?> TryUseCachedConfiguredMapIndexAsync(object innerAtlas, string selectedMap, bool invalidateOnMismatch)
-    {
-        if (!_cachedAtlasMapIndicesByName.TryGetValue(selectedMap, out var cachedIndex))
-        {
-            return null;
-        }
-
-        if (!TryGetAtlasChildHoverCenter(innerAtlas, cachedIndex, out var cachedCenter))
-        {
-            if (!invalidateOnMismatch)
-            {
-                LogDebug($"Cached atlas map index is not currently hover-usable. map='{selectedMap}', cachedIndex={cachedIndex}. Deferring cache refresh until post-prep retry.");
-                return null;
-            }
-
-            LogDebug($"Cached atlas map index is still not hover-usable after prep retry. map='{selectedMap}', cachedIndex={cachedIndex}. Refreshing cache.");
-            InvalidateCachedAtlasMapIndex(selectedMap);
-            return null;
-        }
-
-        var hoveredMapName = await TryHoverAtlasMapNameAtAsync(cachedCenter);
-        if (!hoveredMapName.EqualsIgnoreCase(selectedMap))
-        {
-            if (!invalidateOnMismatch)
-            {
-                LogDebug($"Cached atlas map index mismatch. map='{selectedMap}', cachedIndex={cachedIndex}, hovered='{hoveredMapName ?? "<null>"}'. Deferring cache refresh until post-prep retry.");
-                return null;
-            }
-
-            LogDebug($"Cached atlas map index mismatch. map='{selectedMap}', cachedIndex={cachedIndex}, hovered='{hoveredMapName ?? "<null>"}'. Refreshing cache after prep retry.");
-            InvalidateCachedAtlasMapIndex(selectedMap);
-            return null;
-        }
-
-        _lastHoveredAtlasMapNamesByIndex[cachedIndex] = hoveredMapName;
-        LogDebug($"Using cached atlas map index. map='{selectedMap}', index={cachedIndex}");
-        return cachedIndex;
-    }
-
-    private void InvalidateCachedAtlasMapIndex(string selectedMap)
-    {
-        if (string.IsNullOrWhiteSpace(selectedMap))
-        {
-            return;
-        }
-
-        _cachedAtlasMapIndicesByName.Remove(selectedMap);
-    }
-
-    private bool TryGetAtlasChildHoverCenter(object innerAtlas, int index, out SharpDX.Vector2 center)
-    {
-        center = default;
-        var atlasChild = TryGetChildAtIndex(innerAtlas, index);
-        if (atlasChild == null || !TryGetElementIsVisible(atlasChild))
-        {
-            return false;
-        }
-
-        var candidateCenter = TryGetElementCenter(atlasChild);
-        if (!candidateCenter.HasValue || !IsAtlasHoverPositionUsable(candidateCenter.Value))
-        {
-            return false;
-        }
-
-        center = candidateCenter.Value;
-        return true;
-    }
-
-    private async Task<string> TryHoverAtlasMapNameAtAsync(SharpDX.Vector2 position)
-    {
-        if (!IsAtlasHoverPositionUsable(position))
-        {
-            return null;
-        }
-
-        await HoverAtlasChildForTooltipAsync(position);
-        return TryExtractMapNameFromTooltip(TryGetCurrentUiHoverTooltip());
-    }
-
-    private void RememberDiscoveredAtlasMapIndices(IReadOnlyDictionary<string, int> discoveredMapIndices)
-    {
-        if (discoveredMapIndices == null || discoveredMapIndices.Count <= 0)
-        {
-            return;
-        }
-
-        foreach (var (mapName, index) in discoveredMapIndices)
-        {
-            if (string.IsNullOrWhiteSpace(mapName) || index < 0)
-            {
-                continue;
-            }
-
-            _cachedAtlasMapIndicesByName[mapName] = index;
-        }
-
-        LogDebug($"Atlas map cache updated in memory. entries={_cachedAtlasMapIndicesByName.Count}");
-    }
-
-    private async Task<Dictionary<string, int>> DiscoverAtlasMapIndicesByHoverAsync(object innerAtlas, string targetMap = null)
-    {
-        var discovered = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        _lastHoveredAtlasMapNamesByIndex.Clear();
-
-        var childCount = TryGetElementChildCount(innerAtlas);
-        if (childCount <= 0)
-        {
-            throw new InvalidOperationException("IngameUi.Atlas->Child(0) has no children to scan for map discovery.");
-        }
-
-        const int maxPanPasses = 8;
-        for (var pass = 0; pass <= maxPanPasses; pass++)
-        {
-            var targetFound = await DiscoverVisibleAtlasMapIndicesByHoverPassAsync(innerAtlas, discovered, targetMap);
-            if (targetFound || (!string.IsNullOrWhiteSpace(targetMap) && discovered.ContainsKey(targetMap)))
-            {
-                LogDebug($"Atlas target map discovered after pass {pass + 1}/{maxPanPasses + 1}: '{targetMap}'.");
-                break;
-            }
-
-            if (pass >= maxPanPasses)
-            {
-                break;
-            }
-
-            var panned = await TryPanAtlasForDiscoveryAsync(innerAtlas, pass);
-            if (!panned)
-            {
-                LogDebug($"Atlas discovery pan skipped or failed at pass {pass + 1}. Ending scan early.");
-                break;
-            }
-        }
-
-        LogDebug(
-            _lastHoveredAtlasMapNamesByIndex.Count > 0
-                ? $"Atlas map hover summary: {string.Join(", ", _lastHoveredAtlasMapNamesByIndex.OrderBy(x => x.Key).Select(x => $"{x.Key}='{x.Value}'"))}"
-                : "Atlas map hover summary: no map names were discovered from UIHover.Tooltip.");
-
-        return discovered;
-    }
-
-    private async Task<bool> DiscoverVisibleAtlasMapIndicesByHoverPassAsync(object innerAtlas, IDictionary<string, int> discovered, string targetMap = null)
-    {
-        if (innerAtlas == null || discovered == null)
-        {
-            return false;
-        }
-
-        var childCount = TryGetElementChildCount(innerAtlas);
-        for (var index = 0; index < childCount; index++)
-        {
-            if (!TryGetAtlasChildHoverCenter(innerAtlas, index, out var center))
-            {
-                continue;
-            }
-
-            var hoveredMapName = await TryHoverAtlasMapNameAtAsync(center);
-            if (string.IsNullOrWhiteSpace(hoveredMapName))
-            {
-                continue;
-            }
-
-            _lastHoveredAtlasMapNamesByIndex[index] = hoveredMapName;
-            if (!discovered.ContainsKey(hoveredMapName))
-            {
-                discovered[hoveredMapName] = index;
-            }
-
-            LogDebug($"Atlas map hover discovered: index={index}, map='{hoveredMapName}'");
-
-            if (!string.IsNullOrWhiteSpace(targetMap) &&
-                hoveredMapName.EqualsIgnoreCase(targetMap))
-            {
-                LogDebug($"Stopping hover scan early: configured map '{targetMap}' found at index {index}.");
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private async Task<bool> TryPanAtlasForDiscoveryAsync(object innerAtlas, int passIndex)
-    {
-        if (innerAtlas == null || AtlasDiscoveryPanVectors.Length == 0)
-        {
-            return false;
-        }
-
-        var tooltipFreeStart = await TryResolveTooltipFreeAtlasPanStartAsync(innerAtlas, passIndex);
-        if (!tooltipFreeStart.HasValue)
-        {
-            LogDebug("Atlas discovery pan failed: could not find a tooltip-free drag start.");
-            return false;
-        }
-
-        var panDelta = AtlasDiscoveryPanVectors[Math.Abs(passIndex) % AtlasDiscoveryPanVectors.Length];
-        var start = ClampCursorPositionToGameWindow(tooltipFreeStart.Value);
-        var end = ClampCursorPositionToGameWindow(start + panDelta);
-        if (SharpDX.Vector2.DistanceSquared(start, end) < 256f)
-        {
-            end = ClampCursorPositionToGameWindow(start - panDelta);
-            if (SharpDX.Vector2.DistanceSquared(start, end) < 256f)
-            {
-                LogDebug($"Atlas discovery pan skipped: drag distance too short. start=({start.X:0},{start.Y:0})");
-                return false;
-            }
-        }
-
-        await DragLeftCursorAsync(
-            start,
-            end,
-            Math.Max(25, AutomationTiming.FastPollDelayMs),
-            Math.Max(20, AutomationTiming.KeyTapDelayMs / 2),
-            Math.Max(120, AutomationTiming.UiCheckInitialSettleDelayMs),
-            Math.Max(90, AutomationTiming.FastPollDelayMs));
-
-        LogDebug($"Panned atlas for discovery. pass={passIndex + 1}, from=({start.X:0},{start.Y:0}) to=({end.X:0},{end.Y:0})");
-        return true;
-    }
-
     private async Task<bool> TryPanAtlasForCenteringAsync(object innerAtlas, float verticalDragPixels, int attempt)
     {
         if (innerAtlas == null)
@@ -1027,48 +835,11 @@ public partial class Main
         return x >= minX && x <= maxX && y >= minY && y <= maxY;
     }
 
-    private async Task HoverAtlasChildForTooltipAsync(SharpDX.Vector2 position)
-    {
-        SetAutomationCursorPosition(position);
-        await DelayForUiCheckAsync(Math.Max(90, AutomationTiming.FastPollDelayMs + 25));
-    }
-
     private object TryGetCurrentUiHoverTooltip()
     {
         var ingameState = GameController?.IngameState;
         var uiHover = TryGetPropertyValue<object>(ingameState, "UIHover");
         return TryGetPropertyValue<object>(uiHover, "Tooltip");
-    }
-
-    private static string TryExtractMapNameFromTooltip(object tooltip)
-    {
-        if (tooltip == null)
-        {
-            return null;
-        }
-
-        var child1 = TryGetChildAtIndex(tooltip, 1);
-        var child4 = TryGetChildAtIndex(tooltip, 4);
-
-        object container = null;
-        if (TryGetElementChildCount(child1) == 1)
-        {
-            container = child1;
-        }
-        else if (TryGetElementChildCount(child4) == 1)
-        {
-            container = child4;
-        }
-
-        if (container == null)
-        {
-            return null;
-        }
-
-        var textElement = TryGetChildAtIndex(container, 0);
-        var mapName = TryGetAutomationElementText(textElement);
-
-        return string.IsNullOrWhiteSpace(mapName) ? null : mapName;
     }
 
     private bool IsSpecificMapSelectionConfigured()
@@ -1097,7 +868,18 @@ public partial class Main
             return OpenMapSelectionValue;
         }
 
-        return trimmed;
+        var normalized = NormalizeAtlasMapName(trimmed);
+        return string.IsNullOrWhiteSpace(normalized) ? OpenMapSelectionValue : normalized;
+    }
+
+    private static string NormalizeAtlasMapName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value.Trim().TrimStart('\u2605', ' ', '\u00a0').Trim();
     }
 
     private string GetMapDeviceWindowTitleText()

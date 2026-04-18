@@ -292,19 +292,83 @@ public partial class Main
             selectedMapNode.Value = normalizedSelection;
         }
 
-        var mapNameInput = normalizedSelection.EqualsIgnoreCase(OpenMapSelectionValue)
-            ? string.Empty
+        var mapNames = GetAvailableAtlasMapSelectionOptions(normalizedSelection);
+        var previewText = normalizedSelection.EqualsIgnoreCase(OpenMapSelectionValue)
+            ? "Keep currently opened map"
             : normalizedSelection;
 
-        ImGui.Text("Map Name (exact)");
+        ImGui.Text("Atlas Map");
         ImGui.SameLine();
         ImGui.SetNextItemWidth(220f);
-        if (ImGui.InputText("##BeastsV2MapToRun", ref mapNameInput, 128))
+        if (ImGui.BeginCombo("##BeastsV2MapToRun", previewText))
         {
-            selectedMapNode.Value = NormalizeMapSelectionValue(mapNameInput);
+            var keepCurrentSelected = normalizedSelection.EqualsIgnoreCase(OpenMapSelectionValue);
+            if (ImGui.Selectable("Keep currently opened map", keepCurrentSelected))
+            {
+                selectedMapNode.Value = OpenMapSelectionValue;
+                normalizedSelection = OpenMapSelectionValue;
+            }
+
+            if (keepCurrentSelected)
+            {
+                ImGui.SetItemDefaultFocus();
+            }
+
+            for (var i = 0; i < mapNames.Count; i++)
+            {
+                var mapName = mapNames[i];
+                var isSelected = normalizedSelection.EqualsIgnoreCase(mapName);
+                if (ImGui.Selectable(mapName, isSelected))
+                {
+                    selectedMapNode.Value = mapName;
+                    normalizedSelection = mapName;
+                }
+
+                if (isSelected)
+                {
+                    ImGui.SetItemDefaultFocus();
+                }
+            }
+
+            ImGui.EndCombo();
         }
 
-        ImGui.TextDisabled("Leave empty to keep the currently opened map.");
+        if (mapNames.Count <= 0)
+        {
+            ImGui.TextDisabled("Map list unavailable. Open Atlas once to load map names.");
+            return;
+        }
+
+        ImGui.TextDisabled($"{mapNames.Count} map options loaded.");
+    }
+
+    private List<string> GetAvailableAtlasMapSelectionOptions(string selectedMap)
+    {
+        var options = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var nodes = GameController?.Files?.AtlasNodes?.EntriesList;
+        var limit = nodes == null ? 0 : Math.Min(nodes.Count, 110);
+        for (var i = 0; i < limit; i++)
+        {
+            var mapName = NormalizeAtlasMapName(nodes[i].Area?.Name);
+            if (string.IsNullOrWhiteSpace(mapName) || !seen.Add(mapName))
+            {
+                continue;
+            }
+
+            options.Add(mapName);
+        }
+
+        options.Sort(StringComparer.OrdinalIgnoreCase);
+
+        var normalizedSelection = NormalizeMapSelectionValue(selectedMap);
+        if (!normalizedSelection.EqualsIgnoreCase(OpenMapSelectionValue) &&
+            !options.Any(option => option.EqualsIgnoreCase(normalizedSelection)))
+        {
+            options.Insert(0, normalizedSelection);
+        }
+
+        return options;
     }
 
     private void DrawBestiaryStashTabSelector(string label, string idSuffix, BestiaryAutomationSettings automation, IReadOnlyList<string> stashTabNames)

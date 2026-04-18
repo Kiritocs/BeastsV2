@@ -49,19 +49,9 @@ public partial class Main
     private const float AtlasHudBottomRightBarMaxX = 1.00f;
     private const float AtlasHudBottomRightBarMinY = 0.87f;
     private const float AtlasHudBottomRightBarMaxY = 1.00f;
-    private static readonly SharpDX.Vector2[] AtlasDiscoveryPanVectors =
-    [
-        new SharpDX.Vector2(0f, -280f),
-        new SharpDX.Vector2(0f, 280f),
-        new SharpDX.Vector2(0f, -340f),
-        new SharpDX.Vector2(0f, 340f),
-    ];
 
     [DllImport("user32.dll")]
     private static extern void mouse_event(uint dwFlags, uint dx, uint dy, int dwData, UIntPtr dwExtraInfo);
-
-    private readonly Dictionary<int, string> _lastHoveredAtlasMapNamesByIndex = new();
-    private readonly Dictionary<string, int> _cachedAtlasMapIndicesByName = new(StringComparer.OrdinalIgnoreCase);
 
     private void TryCapturePreparedMapCostBreakdownFromMapDeviceWindow()
     {
