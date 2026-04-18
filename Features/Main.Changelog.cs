@@ -8,6 +8,9 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 18, 2,
+            "Automation -> Stash & Map Device -> Atlas Map Selection now uses a dropdown list of Atlas maps instead of manual typing.",
+            "Map Device Atlas map selection now uses AtlasNodes directly, so it no longer relies on hover discovery scans."),
         new(2026, 04, 18, 1,
             "Bestiary tracking now matches beasts using full metadata paths.",
             "Tracking -> Show Large Map Labels and Show Tracked Beasts Window now keep tracked beasts visible after they leave vision or move out of the network bubble.",
