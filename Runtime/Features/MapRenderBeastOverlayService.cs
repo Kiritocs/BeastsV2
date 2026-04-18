@@ -83,7 +83,9 @@ internal sealed class MapRenderBeastOverlayService
             var gridPos = beast.GridPos;
             BeastsV2Helpers.TryGetTerrainHeight(heightData, (int)gridPos.X, (int)gridPos.Y, out var beastHeight);
 
-            var mapDelta = _callbacks.TranslateGridDeltaToMapDelta(gridPos - playerGridPos, playerHeight + beastHeight);
+            var mapDelta = _callbacks.TranslateGridDeltaToMapDelta(
+                new Vector2(gridPos.X, gridPos.Y) - playerGridPos,
+                playerHeight + beastHeight);
             _callbacks.DrawMapMarker(beast.BeastName, beast.CaptureState, mapCenter + mapDelta);
         }
     }

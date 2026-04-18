@@ -8,13 +8,13 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 18, 1,
+            "Bestiary tracking now matches beasts using full metadata paths.",
+            "Tracking -> Show Large Map Labels and Show Tracked Beasts Window now keep tracked beasts visible after they leave vision or move out of the network bubble.",
+            "Tracking -> Cached Beasts that are in Capturing state now dissappear and get counted as captured after 2 Seconds.",
+            "Tracked beast overlays now stay tied to your current map, so temporary transitions like Mirage or dying no longer wipe the tracked list for that map.",
+            "Counter Window and beast map overlays now stay hidden inside Mirage."),
         new(2026, 04, 15, 1,
-            "Tracking: Markers & Prices -> Show Large Map Labels and Show Tracked Beasts Window now show tracked beasts after they leave the network bubble or move out of vision.",
-            "Tracking now auto-counts an older cached capturing beast as captured when a newer beast enters capturing state.",
-            "Cached tracked-beast labels now survive temporary area transitions like Mirage and only clear when a map is finalized or a genuinely new map starts.",
-            "Tracked completion now waits for live tracked beasts to actually leave the uncaptured state before showing 'all tracked beasts captured', even if counts or mission text look complete early.",
-            "Tracked completion now also stays blocked by cached off-bubble tracked beasts until they are actually captured or otherwise resolved, instead of ignoring them once the last live beast is found.",
-            "Overlays -> Visibility -> Hide Counter & Message In Hideout and Hide Analytics In Hideout now also treat towns and other peaceful areas like hideout visibility zones.",
             "Automation -> Timing -> Lock User Input During Automation should no longer leave your mouse feeling slow after automation finishes.",
             "Automation -> Stash & Map Device restock is now better at finding and opening your stash.",
             "Automation -> Stash & Map Device restock is now better at finding and opening your map device.",

@@ -910,7 +910,7 @@ public partial class Main
 
         return BeastsV2BeastData.AllRedBeasts.Any(beast =>
             beast.Name.EqualsIgnoreCase(identity) ||
-            beast.MetadataPatterns.Any(pattern => identity.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0));
+            beast.MetadataPatterns.Any(pattern => string.Equals(identity, pattern, StringComparison.OrdinalIgnoreCase)));
     }
 
     private async Task<int> WaitForCapturedMonsterInventoryItemCountToChangeAsync(int previousCount)

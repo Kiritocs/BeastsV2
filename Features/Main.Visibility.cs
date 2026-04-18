@@ -15,12 +15,13 @@ public partial class Main
 
         var visibility = Settings.Visibility;
         var isHideoutLikeArea = IsOverlayHideInHideoutArea(GameController.Area?.CurrentArea);
+        var isInMirage = IsinMirage();
         var counterWindow = Settings.CounterWindow;
         if (counterWindow.CompletedStyle.ShowWhileNotComplete.Value ||
             counterWindow.CompletedMessage.ShowWhileNotComplete.Value ||
             counterWindow.TrackedCompletionMessage.ShowWhileNotComplete.Value)
         {
-            shouldRenderCounterAndMessage = true;
+            shouldRenderCounterAndMessage = !isInMirage;
             shouldRenderAnalytics = !visibility.HideAnalyticsInHideout.Value || !isHideoutLikeArea;
             return;
         }
@@ -39,7 +40,7 @@ public partial class Main
 
         if (visibility.HideInHideout.Value && isHideoutLikeArea) return;
 
-        shouldRenderCounterAndMessage = !IsConfiguredSidePanelOpen(
+        shouldRenderCounterAndMessage = !isInMirage && !IsConfiguredSidePanelOpen(
             ingameUi,
             visibility.HideOnOpenLeftPanel.Value,
             visibility.HideOnOpenRightPanel.Value);
