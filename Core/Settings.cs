@@ -105,7 +105,7 @@ public class Settings : ISettings
         set => _analyticsWebServer = value ?? new();
     }
 
-    [Menu("Overlays: Analytics", "Central analytics settings for overlay window, visibility rules, web dashboard, and analytics feature toggle.")]
+    [Menu("Overlays: Analytics", "Central analytics settings for overlay window, web dashboard, and analytics feature toggle.")]
     [JsonIgnore]
     public AnalyticsMenuSettings Analytics { get; private set; }
 
@@ -332,7 +332,6 @@ public sealed class AnalyticsMenuSettings
     public AnalyticsMenuSettings(Settings owner)
     {
         _owner = owner;
-        Visibility = new AnalyticsVisibilityMenuSettings(owner);
     }
 
     [Menu("Enable Features", "Master switch for analytics features. When disabled, the analytics overlay and web dashboard are off, and automatic session autosaves are skipped.")]
@@ -354,42 +353,6 @@ public sealed class AnalyticsMenuSettings
     {
         get => _owner.AnalyticsWebServer;
         set => _owner.AnalyticsWebServer = value ?? new();
-    }
-
-    [Menu("Visibility", "Control when the analytics overlay is automatically hidden in hideout or while specific UI panels are open.")]
-    [JsonIgnore]
-    public AnalyticsVisibilityMenuSettings Visibility { get; }
-}
-
-[Submenu(CollapsedByDefault = true)]
-public sealed class AnalyticsVisibilityMenuSettings
-{
-    private readonly Settings _owner;
-
-    public AnalyticsVisibilityMenuSettings(Settings owner)
-    {
-        _owner = owner;
-    }
-
-    [Menu("Hide On Open Left Panel", "Hide the analytics overlay when a left-side panel like the Bestiary or Challenges is open.")]
-    public ToggleNode HideOnOpenLeftPanel
-    {
-        get => _owner.Visibility.HideAnalyticsOnOpenLeftPanel;
-        set => _owner.Visibility.HideAnalyticsOnOpenLeftPanel = value ?? new(true);
-    }
-
-    [Menu("Hide On Open Right Panel", "Hide the analytics overlay when a right-side panel like inventory or stash is open.")]
-    public ToggleNode HideOnOpenRightPanel
-    {
-        get => _owner.Visibility.HideAnalyticsOnOpenRightPanel;
-        set => _owner.Visibility.HideAnalyticsOnOpenRightPanel = value ?? new(true);
-    }
-
-    [Menu("Hide In Hideout", "Hide the analytics overlay while you are inside your hideout, town, or another peaceful area. Disable this if you want analytics to remain visible there.")]
-    public ToggleNode HideInHideout
-    {
-        get => _owner.Visibility.HideAnalyticsInHideout;
-        set => _owner.Visibility.HideAnalyticsInHideout = value ?? new(true);
     }
 }
 
