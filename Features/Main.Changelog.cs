@@ -8,6 +8,16 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 04, 24, 2,
+            "Analytics: Enable Features now adds a single master toggle to fully turn analytics on or off.",
+            "When disabled, the Map Time / Avg Map / Session overlay panel is hidden, the local analytics dashboard stays off, and automatic session autosaves are skipped.",
+            "Analytics background work is also paused while disabled, including map-cost polling, session timer updates, startup session maintenance, and dashboard URL actions."),
+        new(2026, 04, 24, 1,
+            "Analytics Web Server -> Saved Sessions now auto-cleans old AutoSave files so BeastsV2Sessions does not grow forever and slow ExileApi over time.",
+            "AutoSave cleanup now runs when Beasts V2 starts and again after each new AutoSave, keeping a recent rolling history instead of an unbounded archive."),
+        new(2026, 04, 19, 1,
+            "Tracking: Markers & Prices -> Show Cached Tracked Beasts now lets you choose whether off-screen tracked beasts stay visible on map labels and in the tracked beasts window.",
+            "Tracking: Markers & Prices -> Tracked Beast Overlay Refresh (ms) now lets you throttle map-label and tracked-window refresh rate to reduce render work while idling."),
         new(2026, 04, 18, 2,
             "Automation -> Stash & Map Device -> Atlas Map Selection now uses a dropdown list of Atlas maps instead of manual typing.",
             "Map Device Atlas map selection now uses AtlasNodes directly, so it no longer relies on hover discovery scans."),

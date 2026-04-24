@@ -44,6 +44,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private readonly Dictionary<string, string> _trackedBeastNameCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<TrackedBeastRenderInfo> _trackedBeastRenderBuffer = new();
     private readonly List<TrackedBeastMapMarkerInfo> _trackedBeastOverlayBuffer = new();
+    private IReadOnlyList<TrackedBeastMapMarkerInfo> _trackedBeastOverlayThrottleBuffer = Array.Empty<TrackedBeastMapMarkerInfo>();
     private readonly List<string> _analyticsLineBuffer = new();
     private readonly Dictionary<string, int> _valuableBeastCounts = AllRedBeasts.ToDictionary(x => x.Name, _ => 0);
     private readonly Dictionary<string, int> _currentMapValuableBeastCounts = new(StringComparer.OrdinalIgnoreCase);
@@ -72,6 +73,11 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private bool _isBestiaryClipboardPasteRunning;
     private string _trackedBeastOverlayCacheAreaHash = string.Empty;
     private int _trackedBeastOverlayCacheAreaInstanceId = -1;
+    private DateTime _trackedBeastOverlayThrottleLastRefreshUtc = DateTime.MinValue;
+    private int _trackedBeastOverlayThrottleRefreshMs = -1;
+    private bool _trackedBeastOverlayThrottleShowEnabledOnly;
+    private bool _trackedBeastOverlayThrottleShowCached;
+    private bool _analyticsFeaturesEnabledLastFrame = true;
 
     public Main()
     {
@@ -85,6 +91,9 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var now = DateTime.UtcNow;
         _currentAnalyticsSessionId = Guid.NewGuid().ToString("N");
         Runtime.Initialize(now, CreateSettingsBindingTargets());
+        _analyticsFeaturesEnabledLastFrame = IsAnalyticsFeaturesEnabled();
+        if (_analyticsFeaturesEnabledLastFrame)
+            AnalyticsSessions.PerformAutoSaveMaintenance();
 
         InitializeCurrentAreaTracking(now);
 
@@ -100,7 +109,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         base.OnClose();
         SavePersistedBeastPriceSettings();
-        if (_mapHistory.Count > 0 || _sessionBeastsFound > 0)
+        if (IsAnalyticsFeaturesEnabled() && (_mapHistory.Count > 0 || _sessionBeastsFound > 0))
             AutoSaveSessionSnapshotToFile();
         DisposeAnalyticsWebServer();
         Runtime.Shutdown();
@@ -248,6 +257,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var decision = Runtime.AreaTransitions.Evaluate(area, now, _currentMapBeastsFound > 0);
 
         _trackedBeastEntities.Clear();
+        InvalidateTrackedBeastOverlayThrottle();
         _routeNeedsRegen = true;
         CancelBeastPaths();
         PauseCurrentMapTimer(now);
@@ -269,7 +279,8 @@ public partial class Main : BaseSettingsPlugin<Settings>
         {
             FinalizeCurrentMapAnalytics(decision.PreviousAreaHash, decision.PreviousAreaName, now);
             FinalizePausedMap();
-            AutoSaveSessionSnapshotToFile();
+            if (IsAnalyticsFeaturesEnabled())
+                AutoSaveSessionSnapshotToFile();
         }
 
         if (decision.Kind != global::BeastsV2.Runtime.Lifecycle.AreaTransitionKind.EnteredNewTrackableMap)
@@ -287,6 +298,14 @@ public partial class Main : BaseSettingsPlugin<Settings>
         _trackedBeastOverlayCacheById.Clear();
         _trackedBeastOverlayCacheAreaHash = string.Empty;
         _trackedBeastOverlayCacheAreaInstanceId = -1;
+        InvalidateTrackedBeastOverlayThrottle();
+    }
+
+    private void InvalidateTrackedBeastOverlayThrottle()
+    {
+        _trackedBeastOverlayThrottleBuffer = Array.Empty<TrackedBeastMapMarkerInfo>();
+        _trackedBeastOverlayThrottleLastRefreshUtc = DateTime.MinValue;
+        _trackedBeastOverlayThrottleRefreshMs = -1;
     }
 
     private void SetTrackedBeastOverlayCacheScope(string areaHash, int areaInstanceId)
@@ -481,7 +500,8 @@ public partial class Main : BaseSettingsPlugin<Settings>
         var showEnabledOnly = Settings.MapRender.ShowEnabledOnly.Value;
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
         var now = DateTime.UtcNow;
-        var shouldIncludeCachedOverlays = IsTrackedBeastOverlayCacheInCurrentAreaScope();
+        var shouldIncludeCachedOverlays = Settings.MapRender.ShowCachedTrackedBeasts.Value &&
+                                          IsTrackedBeastOverlayCacheInCurrentAreaScope();
         var liveOverlayIds = new HashSet<long>();
         List<long> expiredOverlayIds = null;
 
@@ -558,6 +578,32 @@ public partial class Main : BaseSettingsPlugin<Settings>
         return _trackedBeastOverlayBuffer;
     }
 
+    private IReadOnlyList<TrackedBeastMapMarkerInfo> CollectTrackedBeastOverlayInfoThrottled(DateTime now)
+    {
+        var mapRender = Settings.MapRender;
+        var refreshMs = Math.Max(0, mapRender.TrackedBeastOverlayRefreshMs.Value);
+        var showEnabledOnly = mapRender.ShowEnabledOnly.Value;
+        var showCached = mapRender.ShowCachedTrackedBeasts.Value;
+
+        var settingsChanged = refreshMs != _trackedBeastOverlayThrottleRefreshMs ||
+                              showEnabledOnly != _trackedBeastOverlayThrottleShowEnabledOnly ||
+                              showCached != _trackedBeastOverlayThrottleShowCached;
+        var refreshDue = refreshMs <= 0 ||
+                         now - _trackedBeastOverlayThrottleLastRefreshUtc >= TimeSpan.FromMilliseconds(refreshMs);
+
+        if (!settingsChanged && !refreshDue)
+        {
+            return _trackedBeastOverlayThrottleBuffer;
+        }
+
+        _trackedBeastOverlayThrottleBuffer = CollectTrackedBeastOverlayInfo();
+        _trackedBeastOverlayThrottleLastRefreshUtc = now;
+        _trackedBeastOverlayThrottleRefreshMs = refreshMs;
+        _trackedBeastOverlayThrottleShowEnabledOnly = showEnabledOnly;
+        _trackedBeastOverlayThrottleShowCached = showCached;
+        return _trackedBeastOverlayThrottleBuffer;
+    }
+
     private void UpdateTrackedBeastOverlayCache(Entity entity, bool isLive)
     {
         if (entity == null)
@@ -623,8 +669,11 @@ public partial class Main : BaseSettingsPlugin<Settings>
     public override void Render()
     {
         var now = DateTime.UtcNow;
+        var analyticsFeaturesEnabled = IsAnalyticsFeaturesEnabled();
+        HandleAnalyticsFeaturesToggleState(now, analyticsFeaturesEnabled);
 
-        ApplyPauseMenuTimerState(now);
+        if (analyticsFeaturesEnabled)
+            ApplyPauseMenuTimerState(now);
 
         if (_isCurrentAreaTrackable)
         {
@@ -638,10 +687,16 @@ public partial class Main : BaseSettingsPlugin<Settings>
         HandleAutomationHotkey();
         DrawBestiaryAutomationQuickButtons();
         DrawMenagerieInventoryQuickButton();
-        TryCapturePreparedMapCostBreakdownFromMapDeviceWindow();
-
-        RefreshAnalyticsWebSnapshot(now);
-        EnsureAnalyticsWebServerState();
+        if (analyticsFeaturesEnabled)
+        {
+            TryCapturePreparedMapCostBreakdownFromMapDeviceWindow();
+            RefreshAnalyticsWebSnapshot(now);
+            EnsureAnalyticsWebServerState();
+        }
+        else if (_analyticsWebServer?.IsRunning == true)
+        {
+            EnsureAnalyticsWebServerState();
+        }
 
         var beastPrices = Settings.BeastPrices;
         var mapRender = Settings.MapRender;
@@ -663,7 +718,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         IReadOnlyList<TrackedBeastMapMarkerInfo> trackedBeastOverlays = Array.Empty<TrackedBeastMapMarkerInfo>();
         if (shouldCollectTrackedBeastOverlays)
         {
-            trackedBeastOverlays = CollectTrackedBeastOverlayInfo();
+            trackedBeastOverlays = CollectTrackedBeastOverlayInfoThrottled(now);
         }
 
         RenderMapOverlays(mapRender, liveTrackedBeasts, trackedBeastOverlays, isInMirage);
@@ -673,6 +728,18 @@ public partial class Main : BaseSettingsPlugin<Settings>
         RenderAnalyticsOverlay(analyticsWindow);
 
         RenderAutomationStatusOverlay();
+    }
+
+    private void HandleAnalyticsFeaturesToggleState(DateTime now, bool analyticsFeaturesEnabled)
+    {
+        if (_analyticsFeaturesEnabledLastFrame && !analyticsFeaturesEnabled)
+        {
+            ResetSessionAnalyticsState(now, startCurrentMapTimer: false);
+            _latestAnalyticsSnapshot = new SessionCurrentResponseV2 { GeneratedAtUtc = now };
+            _lastAnalyticsWebSnapshotRefreshUtc = DateTime.MinValue;
+        }
+
+        _analyticsFeaturesEnabledLastFrame = analyticsFeaturesEnabled;
     }
 
     private void RenderMapOverlays(
@@ -1193,6 +1260,12 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         try
         {
+            if (!IsAnalyticsFeaturesEnabled())
+            {
+                LogDebug("Analytics features are disabled. Dashboard URL copy skipped.");
+                return;
+            }
+
             ImGui.SetClipboardText(GetAnalyticsWebServerUrl());
             LogDebug($"Analytics web server URL copied: {GetAnalyticsWebServerUrl()}");
         }
@@ -1206,6 +1279,12 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         try
         {
+            if (!IsAnalyticsFeaturesEnabled())
+            {
+                LogDebug("Analytics features are disabled. Dashboard launch skipped.");
+                return;
+            }
+
             EnsureAnalyticsWebServerState();
             var url = GetAnalyticsWebServerUrl();
             Process.Start(new ProcessStartInfo
@@ -1223,7 +1302,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
     private void RefreshAnalyticsWebSnapshot(DateTime now)
     {
-        if (Settings?.AnalyticsWebServer?.Enabled?.Value != true)
+        if (!IsAnalyticsFeaturesEnabled() || Settings?.AnalyticsWebServer?.Enabled?.Value != true)
         {
             _lastAnalyticsWebSnapshotRefreshUtc = DateTime.MinValue;
             return;

@@ -14,6 +14,8 @@ public partial class Main
 {
     private static readonly Vector4 EnabledBeastTextColor = new(0.4f, 1f, 0.4f, 1f);
     private static readonly HttpClient HttpClient = new();
+    private const string PoeNinjaItemOverviewEndpoint = "economy/stash/current/item/overview";
+    private const string PoeNinjaExchangeOverviewEndpoint = "economy/exchange/current/overview";
     private static readonly string[] PoeNinjaItemOverviewTypes =
     [
         "Scarab",
@@ -21,8 +23,16 @@ public partial class Main
         "Fragment",
         "Currency",
         "Invitation",
-        "Oil",
     ];
+    private static readonly Dictionary<string, string> PoeNinjaOverviewEndpointByType = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Beast"] = PoeNinjaItemOverviewEndpoint,
+        ["Scarab"] = PoeNinjaExchangeOverviewEndpoint,
+        ["Map"] = PoeNinjaItemOverviewEndpoint,
+        ["Fragment"] = PoeNinjaExchangeOverviewEndpoint,
+        ["Currency"] = PoeNinjaExchangeOverviewEndpoint,
+        ["Invitation"] = PoeNinjaItemOverviewEndpoint,
+    };
 
     private Dictionary<string, float> _beastPrices = AllRedBeasts.ToDictionary(x => x.Name, _ => -1f);
     private Dictionary<string, float> _marketItemPrices = new(StringComparer.OrdinalIgnoreCase);
@@ -122,14 +132,28 @@ public partial class Main
             Log("Fetching beast prices from poe.ninja...");
             var league = Uri.EscapeDataString(Settings.BeastPrices.League.Value?.Trim() ?? "Mirage");
 
-            var beastUrl = $"https://poe.ninja/api/data/itemoverview?league={league}&type=Beast";
+            var beastUrl = BuildPoeNinjaOverviewUrl(league, "Beast");
+                
             var beastJson = await HttpClient.GetStringAsync(beastUrl);
-            var beastResponse = JsonConvert.DeserializeObject<PoeNinjaBeastsResponse>(beastJson);
+            var beastResponse = JsonConvert.DeserializeObject<PoeNinjaOverviewResponse>(beastJson);
             if (beastResponse?.Lines == null) return;
 
-            var lookup = beastResponse.Lines
-                .Where(l => l.Name != null)
-                .ToDictionary(l => l.Name, l => l.ChaosValue, StringComparer.OrdinalIgnoreCase);
+            var lookup = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            var beastNamesById = BuildPoeNinjaItemNameById(beastResponse);
+            foreach (var line in beastResponse.Lines)
+            {
+                var lineName = GetPoeNinjaLineName(line, beastNamesById);
+                var chaosValue = GetPoeNinjaLineChaosValue(line);
+                if (string.IsNullOrWhiteSpace(lineName) || chaosValue <= 0)
+                {
+                    continue;
+                }
+
+                if (!lookup.TryGetValue(lineName, out var existingPrice) || chaosValue > existingPrice)
+                {
+                    lookup[lineName] = chaosValue;
+                }
+            }
 
             var updated = AllRedBeasts.ToDictionary(
                 b => b.Name,
@@ -146,32 +170,37 @@ public partial class Main
             {
                 try
                 {
-                    var url = $"https://poe.ninja/api/data/itemoverview?league={league}&type={Uri.EscapeDataString(type)}";
+                    var url = BuildPoeNinjaOverviewUrl(league, type);
                     var json = await HttpClient.GetStringAsync(url);
-                    var response = JsonConvert.DeserializeObject<PoeNinjaItemOverviewResponse>(json);
+                    var response = JsonConvert.DeserializeObject<PoeNinjaOverviewResponse>(json);
                     if (response?.Lines == null)
                     {
                         continue;
                     }
 
+                    var namesById = BuildPoeNinjaItemNameById(response);
+
                     foreach (var line in response.Lines)
                     {
-                        if (string.IsNullOrWhiteSpace(line.Name) || line.ChaosValue <= 0)
+                        var lineName = GetPoeNinjaLineName(line, namesById);
+                        var chaosValue = GetPoeNinjaLineChaosValue(line);
+                        if (string.IsNullOrWhiteSpace(lineName) || chaosValue <= 0)
                         {
                             continue;
                         }
 
-                        marketItemPrices[line.Name] = line.ChaosValue;
+                        marketItemPrices[lineName] = chaosValue;
 
-                        if (line.MapTier.HasValue && line.MapTier.Value > 0)
+                        var mapTier = GetPoeNinjaLineMapTier(line, lineName);
+                        if (mapTier.HasValue)
                         {
-                            if (!mapTierBuckets.TryGetValue(line.MapTier.Value, out var bucket))
+                            if (!mapTierBuckets.TryGetValue(mapTier.Value, out var bucket))
                             {
                                 bucket = new List<float>();
-                                mapTierBuckets[line.MapTier.Value] = bucket;
+                                mapTierBuckets[mapTier.Value] = bucket;
                             }
 
-                            bucket.Add(line.ChaosValue);
+                            bucket.Add(chaosValue);
                         }
                     }
                 }
@@ -198,6 +227,104 @@ public partial class Main
         {
             _isFetchingPrices = false;
         }
+    }
+
+    private static string BuildPoeNinjaOverviewUrl(string escapedLeague, string type)
+    {
+        if (!PoeNinjaOverviewEndpointByType.TryGetValue(type ?? string.Empty, out var endpoint))
+        {
+            endpoint = PoeNinjaItemOverviewEndpoint;
+        }
+
+        return $"https://poe.ninja/poe1/api/{endpoint}?league={escapedLeague}&type={Uri.EscapeDataString(type ?? string.Empty)}";
+    }
+
+    private static Dictionary<string, string> BuildPoeNinjaItemNameById(PoeNinjaOverviewResponse response)
+    {
+        var namesById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (response?.Items == null)
+        {
+            return namesById;
+        }
+
+        foreach (var item in response.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item?.Id) || string.IsNullOrWhiteSpace(item.Name))
+            {
+                continue;
+            }
+
+            namesById[item.Id] = item.Name;
+        }
+
+        return namesById;
+    }
+
+    private static string GetPoeNinjaLineName(PoeNinjaOverviewLine line, IReadOnlyDictionary<string, string> namesById)
+    {
+        if (!string.IsNullOrWhiteSpace(line?.Id) && namesById != null && namesById.TryGetValue(line.Id, out var nameById))
+        {
+            return nameById;
+        }
+
+        if (!string.IsNullOrWhiteSpace(line?.Name))
+        {
+            return line.Name;
+        }
+
+        return !string.IsNullOrWhiteSpace(line?.CurrencyTypeName)
+            ? line.CurrencyTypeName
+            : string.Empty;
+    }
+
+    private static float GetPoeNinjaLineChaosValue(PoeNinjaOverviewLine line)
+    {
+        if (line == null)
+        {
+            return -1f;
+        }
+
+        if (line.PrimaryValue > 0)
+        {
+            return line.PrimaryValue.Value;
+        }
+
+        if (line.ChaosValue > 0)
+        {
+            return line.ChaosValue.Value;
+        }
+
+        if (line.ChaosEquivalent > 0)
+        {
+            return line.ChaosEquivalent.Value;
+        }
+
+        return -1f;
+    }
+
+    private static int? GetPoeNinjaLineMapTier(PoeNinjaOverviewLine line, string lineName)
+    {
+        if (line?.MapTier > 0)
+        {
+            return line.MapTier;
+        }
+
+        if (string.IsNullOrWhiteSpace(lineName))
+        {
+            return null;
+        }
+
+        var tierMatch = System.Text.RegularExpressions.Regex.Match(
+            lineName,
+            @"\(\s*Tier\s*(\d+)\s*\)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (!tierMatch.Success || !int.TryParse(tierMatch.Groups[1].Value, out var parsedTier) || parsedTier <= 0)
+        {
+            return null;
+        }
+
+        return parsedTier;
     }
 
     private void RebuildPriceCaches(Dictionary<string, float> prices)
@@ -237,26 +364,26 @@ public partial class Main
         return false;
     }
 
-    private class PoeNinjaBeastsResponse
+    private class PoeNinjaOverviewResponse
     {
-        [JsonProperty("lines")] public List<PoeNinjaBeastLine> Lines { get; set; }
+        [JsonProperty("items")] public List<PoeNinjaOverviewItem> Items { get; set; }
+        [JsonProperty("lines")] public List<PoeNinjaOverviewLine> Lines { get; set; }
     }
 
-    private class PoeNinjaBeastLine
+    private class PoeNinjaOverviewItem
     {
+        [JsonProperty("id")] public string Id { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
-        [JsonProperty("chaosValue")] public float ChaosValue { get; set; }
     }
 
-    private class PoeNinjaItemOverviewResponse
+    private class PoeNinjaOverviewLine
     {
-        [JsonProperty("lines")] public List<PoeNinjaItemOverviewLine> Lines { get; set; }
-    }
-
-    private class PoeNinjaItemOverviewLine
-    {
+        [JsonProperty("id")] public string Id { get; set; }
         [JsonProperty("name")] public string Name { get; set; }
-        [JsonProperty("chaosValue")] public float ChaosValue { get; set; }
+        [JsonProperty("currencyTypeName")] public string CurrencyTypeName { get; set; }
+        [JsonProperty("primaryValue")] public float? PrimaryValue { get; set; }
+        [JsonProperty("chaosValue")] public float? ChaosValue { get; set; }
+        [JsonProperty("chaosEquivalent")] public float? ChaosEquivalent { get; set; }
         [JsonProperty("mapTier")] public int? MapTier { get; set; }
     }
 }

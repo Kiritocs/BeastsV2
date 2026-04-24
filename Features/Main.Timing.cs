@@ -5,6 +5,28 @@ namespace BeastsV2;
 
 public partial class Main
 {
+    private void ResetSessionAnalyticsState(DateTime now, bool startCurrentMapTimer)
+    {
+        _currentAnalyticsSessionId = Guid.NewGuid().ToString("N");
+        _sessionStartUtc = now;
+        _sessionPausedDuration = TimeSpan.Zero;
+        _loadedSessionsDuration = TimeSpan.Zero;
+        _pauseMenuSessionStartUtc = null;
+        _sessionBeastsFound = 0;
+        _totalRedBeastsSession = 0;
+        _completedMapsDuration = TimeSpan.Zero;
+        _completedMapCount = 0;
+        _currentMapElapsed = TimeSpan.Zero;
+        _currentMapStartUtc = startCurrentMapTimer ? now : null;
+        _mapHistory.Clear();
+        _loadedSaveIds.Clear();
+        _loadedSaveCacheById.Clear();
+        ResetCurrentMapAnalytics();
+
+        foreach (var tracked in AllRedBeasts)
+            _valuableBeastCounts[tracked.Name] = 0;
+    }
+
     private void ApplyPauseMenuTimerState(DateTime now)
     {
         var pauseMenuOpen = IsPauseMenuOpen();
@@ -39,7 +61,7 @@ public partial class Main
 
     private void FinalizePausedMap()
     {
-        if (_currentMapElapsed > TimeSpan.Zero)
+        if (IsAnalyticsFeaturesEnabled() && _currentMapElapsed > TimeSpan.Zero)
         {
             _completedMapsDuration += _currentMapElapsed;
             _completedMapCount++;
@@ -52,24 +74,8 @@ public partial class Main
     {
         if (!ImGui.GetIO().KeyShift) return;
 
-        _currentAnalyticsSessionId = Guid.NewGuid().ToString("N");
-        _sessionStartUtc = DateTime.UtcNow;
-        _sessionPausedDuration = TimeSpan.Zero;
-        _loadedSessionsDuration = TimeSpan.Zero;
-        _pauseMenuSessionStartUtc = null;
-        _sessionBeastsFound = 0;
-        _totalRedBeastsSession = 0;
-        _completedMapsDuration = TimeSpan.Zero;
-        _completedMapCount = 0;
-        _currentMapElapsed = TimeSpan.Zero;
-        _currentMapStartUtc = _isCurrentAreaTrackable ? DateTime.UtcNow : null;
-        _mapHistory.Clear();
-        _loadedSaveIds.Clear();
-        _loadedSaveCacheById.Clear();
-        ResetCurrentMapAnalytics();
-
-        foreach (var tracked in AllRedBeasts)
-            _valuableBeastCounts[tracked.Name] = 0;
+        var now = DateTime.UtcNow;
+        ResetSessionAnalyticsState(now, startCurrentMapTimer: _isCurrentAreaTrackable);
     }
 
     private void ResetMapAverageAnalytics()
