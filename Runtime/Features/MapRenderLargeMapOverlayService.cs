@@ -21,7 +21,7 @@ internal sealed record MapRenderLargeMapOverlayCallbacks(
     Func<bool> GetShowBeastsOnMap,
     Func<bool> GetShowPathsToBeasts,
     Func<bool> GetShowExplorationRoute,
-    Action<Vector2, IReadOnlyList<TrackedBeastRenderInfo>> DrawBeastMarkersOnMap,
+    Action<Vector2, IReadOnlyList<TrackedBeastMapMarkerInfo>> DrawBeastMarkersOnMap,
     Action<Vector2> DrawPathsToBeasts,
     Action<Vector2> DrawExplorationRouteOnMap,
     Action<Vector2> DrawEntityExclusionZones,
@@ -36,7 +36,7 @@ internal sealed class MapRenderLargeMapOverlayService
         _callbacks = callbacks ?? throw new ArgumentNullException(nameof(callbacks));
     }
 
-    public void DrawBeastsOnLargeMap(IReadOnlyList<TrackedBeastRenderInfo> beasts)
+    public void DrawBeastsOnLargeMap(IReadOnlyList<TrackedBeastMapMarkerInfo> beasts)
     {
         var mapRect = _callbacks.GetBaseWindowRect();
 

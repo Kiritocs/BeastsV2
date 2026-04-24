@@ -76,6 +76,64 @@ internal sealed class SessionStoreV2
         }
     }
 
+    public IReadOnlyList<SessionFileEntryV2> ReadRecent(int limit)
+    {
+        if (limit <= 0)
+            return [];
+
+        try
+        {
+            if (!Directory.Exists(_directory))
+                return [];
+
+            return EnumerateSessionFiles()
+                .OrderByDescending(path => Path.GetFileName(path), StringComparer.OrdinalIgnoreCase)
+                .Take(limit)
+                .Select(ReadByPath)
+                .Where(x => x != null)
+                .OrderByDescending(x => x.Data.SavedAtUtc)
+                .ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public IReadOnlyList<SessionFileDiskEntryV2> ReadDiskEntries()
+    {
+        try
+        {
+            if (!Directory.Exists(_directory))
+                return [];
+
+            return EnumerateSessionFiles()
+                .Select(path =>
+                {
+                    try
+                    {
+                        var info = new FileInfo(path);
+                        if (!info.Exists)
+                            return null;
+
+                        return new SessionFileDiskEntryV2(info.Name, Math.Max(0L, info.Length), info.LastWriteTimeUtc);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
+                })
+                .Where(x => x != null)
+                .OrderByDescending(x => x.LastWriteUtc)
+                .ThenByDescending(x => x.FileName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public SessionFileEntryV2 ReadBySessionId(string sessionId)
     {
         if (!IsValidIdentifier(sessionId))
@@ -172,6 +230,32 @@ internal sealed class SessionStoreV2
         }
     }
 
+    public bool DeleteByFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(_directory) ||
+            string.IsNullOrWhiteSpace(fileName) ||
+            fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            fileName.IndexOf(Path.DirectorySeparatorChar) >= 0 ||
+            fileName.IndexOf(Path.AltDirectorySeparatorChar) >= 0)
+        {
+            return false;
+        }
+
+        try
+        {
+            var path = Path.Combine(_directory, fileName);
+            if (!File.Exists(path))
+                return false;
+
+            File.Delete(path);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private SessionFileEntryV2 ReadByPath(string path)
     {
         try
@@ -207,3 +291,5 @@ internal sealed class SessionStoreV2
 }
 
 internal sealed record SessionFileEntryV2(string FileName, SavedSessionDataV2 Data);
+
+internal sealed record SessionFileDiskEntryV2(string FileName, long SizeBytes, DateTime LastWriteUtc);

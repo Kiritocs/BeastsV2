@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace BeastsV2.Runtime.Analytics;
@@ -16,11 +17,22 @@ internal sealed record AnalyticsSessionPersistenceCallbacks(
 
 internal sealed class AnalyticsSessionPersistenceService
 {
+    private const int AutoSaveEquivalentScanLimit = 25;
+    private const int MaxAutoSaveFilesPerStore = 60;
+    private const int MinAutoSaveFilesToKeep = 25;
+    private const long MaxAutoSaveBytesPerStore = 64L * 1024L * 1024L;
+
     private readonly AnalyticsSessionPersistenceCallbacks _callbacks;
 
     public AnalyticsSessionPersistenceService(AnalyticsSessionPersistenceCallbacks callbacks)
     {
         _callbacks = callbacks ?? throw new ArgumentNullException(nameof(callbacks));
+    }
+
+    public void PerformAutoSaveMaintenance()
+    {
+        foreach (var store in GetAllStores())
+            TrimAutoSaves(store);
     }
 
     public bool SaveSessionSnapshot(CreateSessionSaveRequestV2 request)
@@ -34,7 +46,10 @@ internal sealed class AnalyticsSessionPersistenceService
                 return false;
 
             if (request?.IsAutoSave == true)
+            {
                 DeleteEquivalentAutoSaves(store, data);
+                PerformAutoSaveMaintenance();
+            }
 
             return true;
         }
@@ -229,17 +244,74 @@ internal sealed class AnalyticsSessionPersistenceService
         if (store == null || saved == null)
             return;
 
-        var matchingSaveIds = store.ReadAll()
+        var matchingFiles = store.ReadRecent(AutoSaveEquivalentScanLimit)
             .Where(entry => entry?.Data != null)
             .Where(entry => !string.Equals(entry.Data.SaveId, saved.SaveId, StringComparison.OrdinalIgnoreCase))
+            .Where(entry => entry.Data.IsAutoSave)
             .Where(entry => AreEquivalentAutoSaveContents(entry.Data, saved))
-            .Select(entry => entry.Data.SaveId)
-            .Where(saveId => !string.IsNullOrWhiteSpace(saveId))
+            .Select(entry => entry.FileName)
+            .Where(fileName => !string.IsNullOrWhiteSpace(fileName))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        foreach (var saveId in matchingSaveIds)
-            store.DeleteBySaveId(saveId);
+        foreach (var fileName in matchingFiles)
+            store.DeleteByFileName(fileName);
+    }
+
+    private static void TrimAutoSaves(SessionStoreV2 store)
+    {
+        if (store == null)
+            return;
+
+        var allEntries = store.ReadDiskEntries();
+        if (allEntries.Count == 0)
+            return;
+
+        var isAutoSaveStore = IsAutoSaveStore(store.DirectoryPath);
+        var autosaveEntries = allEntries
+            .Where(entry => isAutoSaveStore || IsAutoSaveFileName(entry.FileName))
+            .OrderByDescending(entry => entry.LastWriteUtc)
+            .ThenByDescending(entry => entry.FileName, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (autosaveEntries.Length == 0)
+            return;
+
+        var bytesKept = 0L;
+        var filesKept = 0;
+        for (var i = 0; i < autosaveEntries.Length; i++)
+        {
+            var entry = autosaveEntries[i];
+            var mustKeep = filesKept < MinAutoSaveFilesToKeep;
+            var withinFileLimit = filesKept < MaxAutoSaveFilesPerStore;
+            var withinSizeLimit = bytesKept + entry.SizeBytes <= MaxAutoSaveBytesPerStore;
+            if (mustKeep || (withinFileLimit && withinSizeLimit))
+            {
+                filesKept++;
+                bytesKept += entry.SizeBytes;
+                continue;
+            }
+
+            store.DeleteByFileName(entry.FileName);
+        }
+    }
+
+    private static bool IsAutoSaveStore(string directoryPath)
+    {
+        if (string.IsNullOrWhiteSpace(directoryPath))
+            return false;
+
+        var trimmed = directoryPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var lastSegment = Path.GetFileName(trimmed);
+        return string.Equals(lastSegment, "AutoSaves", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsAutoSaveFileName(string fileName)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+            return false;
+
+        return fileName.IndexOf("-autosave", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private ApiActionResponseV2 ValidateLoadAgainstExistingSessions(DateTime now, SavedSessionDataV2 candidate)

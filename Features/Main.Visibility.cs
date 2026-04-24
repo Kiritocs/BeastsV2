@@ -14,7 +14,8 @@ public partial class Main
         if (ingameUi == null) return;
 
         var visibility = Settings.Visibility;
-        var isHideoutLikeArea = IsHideoutLikeArea(GameController.Area?.CurrentArea);
+        var analyticsFeaturesEnabled = IsAnalyticsFeaturesEnabled();
+        var isHideoutLikeArea = IsOverlayHideInHideoutArea(GameController.Area?.CurrentArea);
         var isInMirage = IsinMirage();
         var counterWindow = Settings.CounterWindow;
         if (counterWindow.CompletedStyle.ShowWhileNotComplete.Value ||
@@ -22,7 +23,8 @@ public partial class Main
             counterWindow.TrackedCompletionMessage.ShowWhileNotComplete.Value)
         {
             shouldRenderCounterAndMessage = !isInMirage;
-            shouldRenderAnalytics = !visibility.HideAnalyticsInHideout.Value || !isHideoutLikeArea;
+            shouldRenderAnalytics = analyticsFeaturesEnabled &&
+                                    (!visibility.HideAnalyticsInHideout.Value || !isHideoutLikeArea);
             return;
         }
 
@@ -34,6 +36,11 @@ public partial class Main
             visibility.HideAnalyticsOnOpenRightPanel.Value);
 
         if (visibility.HideAnalyticsInHideout.Value && isHideoutLikeArea)
+        {
+            shouldRenderAnalytics = false;
+        }
+
+        if (!analyticsFeaturesEnabled)
         {
             shouldRenderAnalytics = false;
         }

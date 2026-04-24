@@ -16,10 +16,14 @@ public class Settings : ISettings
     private MerchantAutomationSettings _merchantAutomation = new();
     private AutomationTimingSettings _automationTiming = new();
     private AutomationStatusOverlaySettings _automationStatusOverlay = new();
+    private AnalyticsWindowSettings _analyticsWindow = new();
+    private ToggleNode _enableAnalyticsFeatures = new(true);
+    private AnalyticsWebServerSettings _analyticsWebServer = new();
 
     public Settings()
     {
         Automation = new AutomationMenuSettings(this);
+        Analytics = new AnalyticsMenuSettings(this);
     }
 
     [Menu("Enabled", "Enable or disable the Beasts V2 plugin.")]
@@ -80,14 +84,30 @@ public class Settings : ISettings
     [Menu("Overlays: Counter", "Configure the on-screen beast counter that shows how many rare beasts have been found in the current area.")]
     public CounterWindowSettings CounterWindow { get; set; } = new();
 
-    [Menu("Overlays: Analytics", "Configure the on-screen analytics panel that tracks session duration, map clear times, average map speed, and valuable beast counts.")]
-    public AnalyticsWindowSettings AnalyticsWindow { get; set; } = new();
+    internal AnalyticsWindowSettings AnalyticsWindow
+    {
+        get => _analyticsWindow;
+        set => _analyticsWindow = value ?? new();
+    }
 
-    [Menu("Overlays: Visibility", "Control when the counter and analytics overlays are automatically hidden, such as in hideout or when game panels like inventory or stash are open.")]
+    [Menu("Overlays: Visibility", "Control when the counter and completion-message overlays are automatically hidden, such as in hideout or when game panels like inventory or stash are open.")]
     public VisibilitySettings Visibility { get; set; } = new();
 
-    [Menu("Analytics: Web Dashboard", "Expose the same analytics and statistics data through a local web dashboard and JSON API.")]
-    public AnalyticsWebServerSettings AnalyticsWebServer { get; set; } = new();
+    internal ToggleNode EnableAnalyticsFeatures
+    {
+        get => _enableAnalyticsFeatures;
+        set => _enableAnalyticsFeatures = value ?? new(true);
+    }
+
+    internal AnalyticsWebServerSettings AnalyticsWebServer
+    {
+        get => _analyticsWebServer;
+        set => _analyticsWebServer = value ?? new();
+    }
+
+    [Menu("Overlays: Analytics", "Central analytics settings for overlay window, visibility rules, web dashboard, and analytics feature toggle.")]
+    [JsonIgnore]
+    public AnalyticsMenuSettings Analytics { get; private set; }
 
     [Menu("What's New", "View plugin update history and changes grouped by version.")]
     public ChangelogSettings Changelog { get; set; } = new();
@@ -135,6 +155,27 @@ public class Settings : ISettings
     {
         get => _automationStatusOverlay;
         set => _automationStatusOverlay = value ?? new();
+    }
+
+    [JsonProperty("AnalyticsWindow")]
+    private AnalyticsWindowSettings SavedAnalyticsWindow
+    {
+        get => _analyticsWindow;
+        set => _analyticsWindow = value ?? new();
+    }
+
+    [JsonProperty("EnableAnalyticsFeatures")]
+    private ToggleNode SavedEnableAnalyticsFeatures
+    {
+        get => _enableAnalyticsFeatures;
+        set => _enableAnalyticsFeatures = value ?? new(true);
+    }
+
+    [JsonProperty("AnalyticsWebServer")]
+    private AnalyticsWebServerSettings SavedAnalyticsWebServer
+    {
+        get => _analyticsWebServer;
+        set => _analyticsWebServer = value ?? new();
     }
 }
 
@@ -284,6 +325,75 @@ public sealed class AutomationHotkeysMenuSettings
 }
 
 [Submenu(CollapsedByDefault = true)]
+public sealed class AnalyticsMenuSettings
+{
+    private readonly Settings _owner;
+
+    public AnalyticsMenuSettings(Settings owner)
+    {
+        _owner = owner;
+        Visibility = new AnalyticsVisibilityMenuSettings(owner);
+    }
+
+    [Menu("Enable Features", "Master switch for analytics features. When disabled, the analytics overlay and web dashboard are off, and automatic session autosaves are skipped.")]
+    public ToggleNode EnableFeatures
+    {
+        get => _owner.EnableAnalyticsFeatures;
+        set => _owner.EnableAnalyticsFeatures = value ?? new(true);
+    }
+
+    [Menu("Window Overlay", "Configure the on-screen analytics panel that tracks session duration, map clear times, average map speed, and valuable beast counts.")]
+    public AnalyticsWindowSettings Window
+    {
+        get => _owner.AnalyticsWindow;
+        set => _owner.AnalyticsWindow = value ?? new();
+    }
+
+    [Menu("Web Dashboard", "Expose the same analytics and statistics data through a local web dashboard and JSON API.")]
+    public AnalyticsWebServerSettings WebDashboard
+    {
+        get => _owner.AnalyticsWebServer;
+        set => _owner.AnalyticsWebServer = value ?? new();
+    }
+
+    [Menu("Visibility", "Control when the analytics overlay is automatically hidden in hideout or while specific UI panels are open.")]
+    [JsonIgnore]
+    public AnalyticsVisibilityMenuSettings Visibility { get; }
+}
+
+[Submenu(CollapsedByDefault = true)]
+public sealed class AnalyticsVisibilityMenuSettings
+{
+    private readonly Settings _owner;
+
+    public AnalyticsVisibilityMenuSettings(Settings owner)
+    {
+        _owner = owner;
+    }
+
+    [Menu("Hide On Open Left Panel", "Hide the analytics overlay when a left-side panel like the Bestiary or Challenges is open.")]
+    public ToggleNode HideOnOpenLeftPanel
+    {
+        get => _owner.Visibility.HideAnalyticsOnOpenLeftPanel;
+        set => _owner.Visibility.HideAnalyticsOnOpenLeftPanel = value ?? new(true);
+    }
+
+    [Menu("Hide On Open Right Panel", "Hide the analytics overlay when a right-side panel like inventory or stash is open.")]
+    public ToggleNode HideOnOpenRightPanel
+    {
+        get => _owner.Visibility.HideAnalyticsOnOpenRightPanel;
+        set => _owner.Visibility.HideAnalyticsOnOpenRightPanel = value ?? new(true);
+    }
+
+    [Menu("Hide In Hideout", "Hide the analytics overlay while you are inside your hideout, town, or another peaceful area. Disable this if you want analytics to remain visible there.")]
+    public ToggleNode HideInHideout
+    {
+        get => _owner.Visibility.HideAnalyticsInHideout;
+        set => _owner.Visibility.HideAnalyticsInHideout = value ?? new(true);
+    }
+}
+
+[Submenu(CollapsedByDefault = true)]
 public class OverviewSettings
 {
     [Menu("Setup Summary", "A compact dashboard for pricing, overlays, and automation readiness.")]
@@ -302,7 +412,7 @@ public class ChangelogSettings
 [Submenu(CollapsedByDefault = true)]
 public class VisibilitySettings
 {
-    [Menu("Hide Counter & Message In Hideout", "Hide the beast counter and completed message while you are inside your hideout.")]
+    [Menu("Hide Counter & Message In Hideout", "Hide the beast counter and completed message while you are inside your hideout, town, or another peaceful area.")]
     public ToggleNode HideInHideout { get; set; } = new(true);
 
     [Menu("Hide Counter & Message On Fullscreen Panels", "Hide the beast counter and completed message when a fullscreen panel like the Atlas or Passive Tree is open.")]
@@ -314,13 +424,10 @@ public class VisibilitySettings
     [Menu("Hide Counter & Message On Open Right Panel", "Hide the beast counter and completed message when a right-side panel like inventory or stash is open.")]
     public ToggleNode HideOnOpenRightPanel { get; set; } = new(true);
 
-    [Menu("Hide Analytics On Open Left Panel", "Hide the analytics overlay when a left-side panel like the Bestiary or Challenges is open.")]
     public ToggleNode HideAnalyticsOnOpenLeftPanel { get; set; } = new(true);
 
-    [Menu("Hide Analytics On Open Right Panel", "Hide the analytics overlay when a right-side panel like inventory or stash is open.")]
     public ToggleNode HideAnalyticsOnOpenRightPanel { get; set; } = new(true);
     
-    [Menu("Hide Analytics In Hideout", "Hide the analytics overlay while you are inside your hideout. Disable this if you want analytics to remain visible there.")]
     public ToggleNode HideAnalyticsInHideout { get; set; } = new(true);
 }
 
@@ -896,6 +1003,12 @@ public class MapRenderSettings
 
     [Menu("Show Tracked Beasts Window", "Show a small floating window that lists all currently alive tracked beasts in the area with their names, prices, and capture status.")]
     public ToggleNode ShowTrackedBeastsWindow { get; set; } = new(true);
+
+    [Menu("Show Cached Tracked Beasts", "Keep tracked beasts visible on map labels and in the tracked beasts window after they move out of your current vision/network bubble. Turn this off to show only currently live tracked beasts.")]
+    public ToggleNode ShowCachedTrackedBeasts { get; set; } = new(true);
+
+    [Menu("Tracked Beast Overlay Refresh (ms)", "How often map labels and the tracked beasts window refresh tracked beast overlays. Lower values update faster; higher values reduce per-frame overlay work.")]
+    public RangeNode<int> TrackedBeastOverlayRefreshMs { get; set; } = new(75, 0, 500);
 
     [Menu("Show Inventory Prices", "Show the poe.ninja price on top of captured beast items in your inventory.")]
     public ToggleNode ShowPricesInInventory { get; set; } = new(true);

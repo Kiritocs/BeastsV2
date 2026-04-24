@@ -50,9 +50,9 @@ public partial class Main
 
     private void DrawInWorldBeasts(IReadOnlyList<TrackedBeastRenderInfo> beasts) => MapRenderBeastOverlays.DrawInWorldBeasts(beasts);
 
-    private void DrawBeastsOnLargeMap(IReadOnlyList<TrackedBeastRenderInfo> beasts) => MapRenderLargeMapOverlay.DrawBeastsOnLargeMap(beasts);
+    private void DrawBeastsOnLargeMap(IReadOnlyList<TrackedBeastMapMarkerInfo> beasts) => MapRenderLargeMapOverlay.DrawBeastsOnLargeMap(beasts);
 
-    private void DrawBeastMarkersOnMap(Vector2 mapCenter, IReadOnlyList<TrackedBeastRenderInfo> beasts)
+    private void DrawBeastMarkersOnMap(Vector2 mapCenter, IReadOnlyList<TrackedBeastMapMarkerInfo> beasts)
     {
         if (!TryGetMapPlayerContext(out var playerGridPos, out var playerHeight, out var heightData))
         {
@@ -88,7 +88,7 @@ public partial class Main
     private void BuildPreviewMapMarkerTexts(string beastName, BeastCaptureState captureState, out string primaryText, out string secondaryText) =>
         MapRenderPresentation.BuildPreviewMapMarkerTexts(beastName, captureState, out primaryText, out secondaryText);
 
-    private void DrawTrackedBeastsWindow(IReadOnlyList<TrackedBeastRenderInfo> beasts) => MapRenderImGuiOverlays.DrawTrackedBeastsWindow(beasts);
+    private void DrawTrackedBeastsWindow(IReadOnlyList<TrackedBeastMapMarkerInfo> beasts) => MapRenderImGuiOverlays.DrawTrackedBeastsWindow(beasts);
 
     private void DrawInventoryBeasts()
     {

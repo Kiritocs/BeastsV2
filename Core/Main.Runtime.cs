@@ -587,7 +587,7 @@ public partial class Main
             server => _analyticsWebServer = server,
             () => _latestAnalyticsSnapshot,
             snapshot => _latestAnalyticsSnapshot = snapshot ?? new SessionCurrentResponseV2(),
-            () => Settings.AnalyticsWebServer.Enabled.Value,
+            () => IsAnalyticsFeaturesEnabled() && Settings.AnalyticsWebServer.Enabled.Value,
             () => Settings.AnalyticsWebServer.Port.Value,
             () => Settings.AnalyticsWebServer.AllowNetworkAccess.Value,
             (_, _) => new AnalyticsWebServer(

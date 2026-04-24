@@ -15,6 +15,19 @@ public partial class Main
     private SessionStoreV2 _sessionStore => AnalyticsPersistenceRuntime.SessionStore;
     private SessionStoreV2 _autoSaveSessionStore => AnalyticsPersistenceRuntime.AutoSaveSessionStore;
 
+    private bool IsAnalyticsFeaturesEnabled() => Settings?.EnableAnalyticsFeatures?.Value != false;
+
+    private static ApiActionResponseV2 BuildAnalyticsDisabledActionResponse()
+        => ApiActionResponseV2.Fail("analytics_disabled", "Analytics features are disabled.");
+
+    private static CompareSessionsResponseV2 BuildAnalyticsDisabledCompareResponse()
+        => new()
+        {
+            Success = false,
+            Code = "analytics_disabled",
+            Message = "Analytics features are disabled.",
+        };
+
     private void SaveSessionSnapshotToFile() => SaveSessionSnapshotToFile((CreateSessionSaveRequestV2)null);
 
     private void AutoSaveSessionSnapshotToFile() => SaveSessionSnapshotToFile(new CreateSessionSaveRequestV2 { IsAutoSave = true });
@@ -22,13 +35,23 @@ public partial class Main
     private bool SaveSessionSnapshotToFile(string customSessionName)
         => SaveSessionSnapshotToFile(new CreateSessionSaveRequestV2 { Name = customSessionName ?? string.Empty });
 
-    private bool SaveSessionSnapshotToFile(CreateSessionSaveRequestV2 request) => AnalyticsSessions.SaveSessionSnapshot(request);
+    private bool SaveSessionSnapshotToFile(CreateSessionSaveRequestV2 request)
+    {
+        return IsAnalyticsFeaturesEnabled() && AnalyticsSessions.SaveSessionSnapshot(request);
+    }
 
-    private SavedSessionDataV2 BuildSavedSessionData(DateTime now, CreateSessionSaveRequestV2 request) =>
-        AnalyticsSessionAggregation.BuildSavedSessionData(now, request);
+    private SavedSessionDataV2 BuildSavedSessionData(DateTime now, CreateSessionSaveRequestV2 request)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? null
+            : AnalyticsSessionAggregation.BuildSavedSessionData(now, request);
+    }
 
     private SavedSessionDataV2 BuildCurrentLiveSessionDataForDuplicateCheck(DateTime now)
     {
+        if (!IsAnalyticsFeaturesEnabled())
+            return null;
+
         var snapshot = BuildSavedSessionData(now, null);
         if (snapshot == null)
             return null;
@@ -192,28 +215,45 @@ public partial class Main
             : 0d;
     }
 
-    private void RegisterCurrentMapReplaySeen(long entityId, string beastName, DateTime now) =>
+    private void RegisterCurrentMapReplaySeen(long entityId, string beastName, DateTime now)
+    {
+        if (!IsAnalyticsFeaturesEnabled())
+            return;
+
         AnalyticsReplayEvents.RegisterSeen(entityId, beastName, now);
+    }
 
-    private void RegisterCurrentMapReplayCaptured(long entityId, string beastName, DateTime now) =>
+    private void RegisterCurrentMapReplayCaptured(long entityId, string beastName, DateTime now)
+    {
+        if (!IsAnalyticsFeaturesEnabled())
+            return;
+
         AnalyticsReplayEvents.RegisterCaptured(entityId, beastName, now);
+    }
 
-    private MapReplayEvent[] BuildCurrentMapReplayEvents(bool includeInferredMisses) =>
-        AnalyticsReplayEvents.BuildReplayEvents(includeInferredMisses);
+    private MapReplayEvent[] BuildCurrentMapReplayEvents(bool includeInferredMisses)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? []
+            : AnalyticsReplayEvents.BuildReplayEvents(includeInferredMisses);
+    }
 
     private void RegisterSessionRareBeast(Entity entity)
     {
-        _sessionBeastsFound++;
         _currentMapBeastsFound++;
+        if (IsAnalyticsFeaturesEnabled())
+            _sessionBeastsFound++;
 
         if (!TryGetTrackedBeastNameCached(entity.Metadata, out var beastName))
             return;
 
-        _totalRedBeastsSession++;
         _currentMapRedBeastsFound++;
-        _valuableBeastCounts[beastName]++;
-
-        RegisterCurrentMapReplaySeen(entity.Id, beastName, DateTime.UtcNow);
+        if (IsAnalyticsFeaturesEnabled())
+        {
+            _totalRedBeastsSession++;
+            _valuableBeastCounts[beastName]++;
+            RegisterCurrentMapReplaySeen(entity.Id, beastName, DateTime.UtcNow);
+        }
 
         _currentMapValuableBeastCounts[beastName] =
             _currentMapValuableBeastCounts.TryGetValue(beastName, out var count) ? count + 1 : 1;
@@ -293,13 +333,29 @@ public partial class Main
     private double ComputeCurrentMapCapturedChaos()
         => AnalyticsEngineV2.ComputeCapturedChaos(_currentMapValuableBeastCapturedCounts, _beastPrices);
 
-    private void FinalizeCurrentMapAnalytics(string areaHash, string areaName, DateTime now) =>
-        AnalyticsSessionAggregation.FinalizeCurrentMapAnalytics(areaHash, areaName, now);
+    private void FinalizeCurrentMapAnalytics(string areaHash, string areaName, DateTime now)
+    {
+        if (!IsAnalyticsFeaturesEnabled())
+        {
+            ResetCurrentMapAnalytics();
+            return;
+        }
 
-    private SessionCurrentResponseV2 BuildAnalyticsWebSnapshot(DateTime now) => AnalyticsSnapshots.BuildWebSnapshot(now);
+        AnalyticsSessionAggregation.FinalizeCurrentMapAnalytics(areaHash, areaName, now);
+    }
+
+    private SessionCurrentResponseV2 BuildAnalyticsWebSnapshot(DateTime now)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? new SessionCurrentResponseV2 { GeneratedAtUtc = now }
+            : AnalyticsSnapshots.BuildWebSnapshot(now);
+    }
 
     private (BeastTotalV2[] BeastTotals, FamilyTotalV2[] FamilyTotals) BuildSessionTotals(bool includeCurrentMap)
     {
+        if (!IsAnalyticsFeaturesEnabled())
+            return ([], []);
+
         var current = includeCurrentMap ? _currentMapValuableBeastCapturedCounts : new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         return AnalyticsEngineV2.BuildTotals(
             AllRedBeasts.Select(x => x.Name),
@@ -308,24 +364,75 @@ public partial class Main
             _beastPrices);
     }
 
-    private MapListResponseV2 BuildMapListResponseV2(int offset, int limit) => AnalyticsSnapshots.BuildMapList(offset, limit);
+    private MapListResponseV2 BuildMapListResponseV2(int offset, int limit)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? new MapListResponseV2
+            {
+                Total = 0,
+                Offset = Math.Max(0, offset),
+                Limit = Math.Max(0, limit),
+                Items = [],
+            }
+            : AnalyticsSnapshots.BuildMapList(offset, limit);
+    }
 
-    private IReadOnlyList<SessionSaveListItemV2> ListSavedSessionsV2() => AnalyticsSessions.ListSavedSessions();
+    private IReadOnlyList<SessionSaveListItemV2> ListSavedSessionsV2()
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? []
+            : AnalyticsSessions.ListSavedSessions();
+    }
 
-    private SessionSaveDetailV2 GetSavedSessionDataV2(string saveId) => AnalyticsSessions.GetSavedSessionData(saveId);
+    private SessionSaveDetailV2 GetSavedSessionDataV2(string saveId)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? null
+            : AnalyticsSessions.GetSavedSessionData(saveId);
+    }
 
-    private ApiActionResponseV2 SaveSessionSnapshotToFileV2(CreateSessionSaveRequestV2 request) => AnalyticsSessions.SaveSessionSnapshotV2(request);
+    private ApiActionResponseV2 SaveSessionSnapshotToFileV2(CreateSessionSaveRequestV2 request)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? BuildAnalyticsDisabledActionResponse()
+            : AnalyticsSessions.SaveSessionSnapshotV2(request);
+    }
 
-    private ApiActionResponseV2 LoadSavedSessionV2(string saveId) => AnalyticsSessions.LoadSavedSession(saveId);
+    private ApiActionResponseV2 LoadSavedSessionV2(string saveId)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? BuildAnalyticsDisabledActionResponse()
+            : AnalyticsSessions.LoadSavedSession(saveId);
+    }
 
-    private ApiActionResponseV2 UnloadSavedSessionV2(string saveId) => AnalyticsSessions.UnloadSavedSession(saveId);
+    private ApiActionResponseV2 UnloadSavedSessionV2(string saveId)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? BuildAnalyticsDisabledActionResponse()
+            : AnalyticsSessions.UnloadSavedSession(saveId);
+    }
 
-    private ApiActionResponseV2 DeleteSavedSessionV2(string saveId) => AnalyticsSessions.DeleteSavedSession(saveId);
+    private ApiActionResponseV2 DeleteSavedSessionV2(string saveId)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? BuildAnalyticsDisabledActionResponse()
+            : AnalyticsSessions.DeleteSavedSession(saveId);
+    }
 
-    private CompareSessionsResponseV2 CompareSavedSessionsV2(CompareSessionsRequestV2 request) => AnalyticsSessions.CompareSavedSessions(request);
+    private CompareSessionsResponseV2 CompareSavedSessionsV2(CompareSessionsRequestV2 request)
+    {
+        return !IsAnalyticsFeaturesEnabled()
+            ? BuildAnalyticsDisabledCompareResponse()
+            : AnalyticsSessions.CompareSavedSessions(request);
+    }
 
     private void ApplyLoadedSessionAnalytics(SavedSessionDataV2 data)
     {
+        if (!IsAnalyticsFeaturesEnabled())
+        {
+            return;
+        }
+
         if (data == null)
         {
             return;
@@ -355,6 +462,11 @@ public partial class Main
 
     private void RemoveLoadedSessionAnalytics(SavedSessionDataV2 data)
     {
+        if (!IsAnalyticsFeaturesEnabled())
+        {
+            return;
+        }
+
         if (data == null)
         {
             return;
@@ -391,6 +503,9 @@ public partial class Main
     private void BuildAnalyticsLines(List<string> lines, bool includeBeastBreakdown = true)
     {
         lines.Clear();
+
+        if (!IsAnalyticsFeaturesEnabled())
+            return;
 
         var now = DateTime.UtcNow;
         lines.Add($"Map Time: {BeastsV2Helpers.FormatDuration(GetCurrentMapTime(now))}");
