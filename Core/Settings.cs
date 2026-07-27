@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
+using ExileCore.PoEMemory.MemoryObjects;
 using ExileCore.Shared.Attributes;
 using ExileCore.Shared.Interfaces;
 using ExileCore.Shared.Nodes;
@@ -548,7 +549,10 @@ public class BeastPricesSettings
     public CustomNode SummaryPanel { get; set; } = new();
 
     [Menu("League", "The league name used for poe.ninja price lookups. Must match your current league exactly, for example Mirage.")]
-    public TextNode League { get; set; } = new("Mirage");
+    public TextNode League { get; set; } = new("Allflame");
+
+    [Menu("Auto Sync League", "Automatically copy the current league from the in-game server data into the League field when that data is available.")]
+    public ToggleNode AutoSyncLeague { get; set; } = new(true);
 
     [Menu("Auto Refresh (min)", "Automatically fetch updated beast prices from poe.ninja at this interval in minutes. Set to 0 to only refresh manually.")]
     public RangeNode<int> AutoRefreshMinutes { get; set; } = new(10, 0, 60);

@@ -129,6 +129,7 @@ public partial class Main
         _lastPriceFetchAttempt = DateTime.UtcNow;
         try
         {
+            SyncBeastPriceLeagueSettingFromServerData();
             Log("Fetching beast prices from poe.ninja...");
             var league = Uri.EscapeDataString(Settings.BeastPrices.League.Value?.Trim() ?? "Mirage");
 

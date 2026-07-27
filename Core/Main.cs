@@ -98,6 +98,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
         InitializeCurrentAreaTracking(now);
 
         LoadPersistedBeastPriceSettings();
+        SyncBeastPriceLeagueSettingFromServerData();
         QueuePriceFetch();
 
         _lastAnalyticsWebSnapshotRefreshUtc = DateTime.MinValue;
@@ -236,6 +237,46 @@ public partial class Main : BaseSettingsPlugin<Settings>
         {
             LogError("Failed to save persisted beast price settings", ex);
         }
+    }
+
+    private void SyncBeastPriceLeagueSettingFromServerData()
+    {
+        if (Settings?.BeastPrices == null)
+        {
+            return;
+        }
+
+        if (Settings.BeastPrices.AutoSyncLeague?.Value != true)
+        {
+            return;
+        }
+
+        var league = GetCurrentLeagueFromServerData();
+        if (string.IsNullOrWhiteSpace(league))
+        {
+            return;
+        }
+
+        var currentLeague = Settings.BeastPrices.League?.Value ?? string.Empty;
+        if (string.Equals(currentLeague, league, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Settings.BeastPrices.League.Value = league;
+        SavePersistedBeastPriceSettings();
+    }
+
+    private string GetCurrentLeagueFromServerData()
+    {
+        var ingameState = GameController?.Game?.IngameState;
+        if (ingameState == null)
+        {
+            return string.Empty;
+        }
+
+        var serverData = ingameState.GetType().GetProperty("ServerData")?.GetValue(ingameState);
+        return serverData?.GetType().GetProperty("League")?.GetValue(serverData) as string ?? string.Empty;
     }
 
     private static string GetBeastsV2SettingsFilePath()
