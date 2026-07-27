@@ -135,40 +135,10 @@ internal sealed class MapStashUiService
 
     public IList<Element> GetVisiblePageItems()
     {
-        return RetryDiscovery(
-            attempt =>
-            {
-                var visibleInventoryItems = _callbacks.GetStash()?.VisibleStash?.VisibleInventoryItems;
-                if (visibleInventoryItems?.Count > 0)
-                {
-                    return visibleInventoryItems.Cast<Element>().ToList();
-                }
-
-                var pageContent = ResolvePageContentRoot();
-                if (pageContent != null)
-                {
-                    var items = new List<Element>();
-                    CollectVisibleEntityDescendants(pageContent, items);
-                    if (items.Count > 0)
-                    {
-                        return items;
-                    }
-
-                    if (attempt == MapStashDiscoveryRetryCount - 1)
-                    {
-                        _callbacks.LogDebug($"GetVisibleMapStashPageItems found no visible entity descendants in page content. content={_callbacks.DescribeElement(pageContent)}, children={_callbacks.DescribeChildren(pageContent)}");
-                    }
-
-                    return null;
-                }
-
-                if (attempt == MapStashDiscoveryRetryCount - 1)
-                {
-                    _callbacks.LogDebug($"GetVisibleMapStashPageItems could not resolve page content. pathTrace={_callbacks.DescribePathLookup(_callbacks.GetOpenLeftPanel(), _callbacks.PageContentPath)}");
-                }
-
-                return null;
-            });
+        var visibleInventoryItems = _callbacks.GetStash()?.VisibleStash?.VisibleInventoryItems;
+        return visibleInventoryItems?.Count > 0
+            ? visibleInventoryItems.Cast<Element>().ToList()
+            : Array.Empty<Element>();
     }
 
     private async Task<bool> VisiblePageContainsMatchQuicklyAsync(int pageNumber, string itemName, string metadata)
@@ -624,11 +594,11 @@ internal sealed class MapStashUiService
 
         if (ReferenceEquals(root, target))
         {
-            return [];
+            return new List<int>();
         }
 
         var stack = new Stack<(Element Element, List<int> Path)>();
-        stack.Push((root, []));
+        stack.Push((root, new List<int>()));
         while (stack.Count > 0)
         {
             var (current, path) = stack.Pop();

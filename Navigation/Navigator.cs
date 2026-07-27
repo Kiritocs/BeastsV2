@@ -92,25 +92,25 @@ internal sealed class Navigator
         for (var radius = 1; radius <= maxSearchRadius; radius++)
         {
             for (var dy = -radius; dy <= radius; dy++)
-            for (var dx = -radius; dx <= radius; dx++)
-            {
-                if (Math.Abs(dx) != radius && Math.Abs(dy) != radius)
+                for (var dx = -radius; dx <= radius; dx++)
                 {
-                    continue;
-                }
+                    if (Math.Abs(dx) != radius && Math.Abs(dy) != radius)
+                    {
+                        continue;
+                    }
 
-                var x = clampedX + dx;
-                var y = clampedY + dy;
-                if (x < 0 || x >= _worldGrid.Width || y < 0 || y >= _worldGrid.Height)
-                {
-                    continue;
-                }
+                    var x = clampedX + dx;
+                    var y = clampedY + dy;
+                    if (x < 0 || x >= _worldGrid.Width || y < 0 || y >= _worldGrid.Height)
+                    {
+                        continue;
+                    }
 
-                if (_worldGrid[y, x] > 0)
-                {
-                    return new Vector2(x, y);
+                    if (_worldGrid[y, x] > 0)
+                    {
+                        return new Vector2(x, y);
+                    }
                 }
-            }
         }
 
         return new Vector2(clampedX, clampedY);
@@ -118,7 +118,7 @@ internal sealed class Navigator
 
     private static void PopulateWorldGrid(TerrainData terrain, WorldGrid worldGrid, ExileCore.Shared.Interfaces.IMemory memory)
     {
-        var layerMeleeBytes = memory.ReadBytes(terrain.LayerMelee.First, terrain.LayerMelee.Size);
+        var layerMeleeBytes = memory.ReadBytes(terrain.LayerMelee.First, (int)terrain.LayerMelee.TotalElements(1));
         var currentByteOffset = 0;
 
         for (var row = 0; row < worldGrid.Height; row++)

@@ -888,7 +888,7 @@ public partial class Main
             : GetMatchingMapStashPageItems(items, null, itemName).FirstOrDefault();
 
     private IList<Element> GetMatchingMapStashPageItems(IList<Element> items, string metadata, string itemName = null) =>
-        items?
+        (items ?? Array.Empty<Element>())
             .Where(x => IsMatchingMapStashItem(x, metadata, itemName))
             .OrderByScreenPosition(x => x.GetClientRect())
             .ToList();

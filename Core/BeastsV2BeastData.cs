@@ -7,7 +7,7 @@ internal static class BeastsV2BeastData
     public static readonly TrackedBeast[] AllRedBeasts =
     [
         // Craicic (The Deep)
-        new("Craicic Chimeral",      ["Metadata/Monsters/LeagueBestiary/GemFrogBestiary"],                    "cic c"),
+        new("Craicic Croaker",      ["Metadata/Monsters/LeagueBestiary/GemFrogBestiary"],                    "cic c"),
         new("Craicic Spider Crab",   ["Metadata/Monsters/LeagueBestiary/CrabSpiderBestiary"],                 "c sp"),
         new("Craicic Maw",           ["Metadata/Monsters/LeagueBestiary/FrogBestiary"],                       "cic m"),
         new("Craicic Sand Spitter",  ["Metadata/Monsters/LeagueBestiary/SandSpitterBestiary"],                "c san"),
