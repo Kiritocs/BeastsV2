@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using ExileCore.PoEMemory;
 
@@ -6,6 +7,8 @@ namespace BeastsV2;
 
 public partial class Main
 {
+    private static readonly int[] TemporaryQuestTextPath = { 4, 0, 0, 0, 0, 0, 1, 0, 1 };
+    
     private static Element GetPrimaryQuestEntry(Element questTracker) => GetQuestEntriesContainer(questTracker)?.GetChildAtIndex(0);
 
     private bool TryGetBeastQuestProgress(out int current, out int total)
@@ -13,31 +16,9 @@ public partial class Main
         current = 0;
         total = 0;
 
-        var questTracker = GameController?.IngameState?.IngameUi?.QuestTracker;
-        if (questTracker == null)
+        foreach (var questText in GetQuestTextCandidates())
         {
-            return false;
-        }
-
-        if (TryParseBeastQuestProgress(GetPrimaryQuestText(questTracker), out current, out total))
-        {
-            return true;
-        }
-
-        var questEntries = GetQuestEntriesContainer(questTracker)?.Children;
-        if (questEntries == null)
-        {
-            return false;
-        }
-
-        foreach (var questEntry in questEntries)
-        {
-            if (questEntry?.IsVisible != true)
-            {
-                continue;
-            }
-
-            if (TryParseBeastQuestProgress(GetQuestEntryText(questEntry), out current, out total))
+            if (TryParseBeastQuestProgress(questText, out current, out total))
             {
                 return true;
             }
@@ -45,6 +26,37 @@ public partial class Main
 
         return false;
     }
+
+    private IEnumerable<string> GetQuestTextCandidates()
+    {
+        var questTracker = GameController?.IngameState?.IngameUi?.QuestTracker;
+        if (questTracker != null)
+        {
+            yield return GetPrimaryQuestText(questTracker);
+
+            var questEntries = GetQuestEntriesContainer(questTracker)?.Children;
+            if (questEntries != null)
+            {
+                foreach (var questEntry in questEntries)
+                {
+                    if (questEntry?.IsVisible == true)
+                    {
+                        yield return GetQuestEntryText(questEntry);
+                    }
+                }
+            }
+        }
+
+        // Temporary fallback until QuestTracker is available again in Exile.
+        var fallbackQuestTextElement = GetTemporaryQuestTextElement();
+        if (!string.IsNullOrWhiteSpace(fallbackQuestTextElement?.Text))
+        {
+            yield return fallbackQuestTextElement.Text;
+        }
+    }
+
+    private Element GetTemporaryQuestTextElement() =>
+        BeastsV2Helpers.GetChildAtIndices(GameController?.IngameState?.IngameUi, TemporaryQuestTextPath);
 
     private static Element GetQuestEntriesContainer(Element questTracker) => BeastsV2Helpers.GetChildAtIndices(questTracker, 0, 0);
 
@@ -76,18 +88,9 @@ public partial class Main
 
     internal bool IsBeastQuestMissionComplete()
     {
-        var questTracker = GameController?.IngameState?.IngameUi?.QuestTracker;
-        if (questTracker == null) return false;
-
-        if (IsMissionCompleteQuestText(GetPrimaryQuestText(questTracker))) return true;
-
-        var questEntries = GetQuestEntriesContainer(questTracker)?.Children;
-        if (questEntries == null) return false;
-
-        foreach (var questEntry in questEntries)
+        foreach (var questText in GetQuestTextCandidates())
         {
-            if (questEntry?.IsVisible != true) continue;
-            if (IsMissionCompleteQuestText(GetQuestEntryText(questEntry))) return true;
+            if (IsMissionCompleteQuestText(questText)) return true;
         }
 
         return false;
