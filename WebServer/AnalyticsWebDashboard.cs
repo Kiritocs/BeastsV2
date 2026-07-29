@@ -150,6 +150,7 @@ th{position:sticky;top:0;background:var(--panel2);font-size:11px;color:var(--mut
 <input id="fMax" type="number" style="width:110px" placeholder="Max net"/>
 <button id="refMap">Refresh</button>
 </div>
+<div class="small" style="margin-bottom:8px">Click a map row to expand the beast breakdown. Dup Scarab usage and per-beast duped status appear in the expanded detail.</div>
 <div class="table"><table><thead><tr><th>Area</th><th>Time</th><th>Reds</th><th>First Red</th><th>Captured</th><th>Cost</th><th>Net</th><th>Dup Scarab</th><th>Completed</th></tr></thead><tbody id="mapBody"></tbody></table></div>
 </article>
 
@@ -247,6 +248,7 @@ const E=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 const Q=r=>r.json().catch(()=>({}));
 const tone=t=>t==='captured'?'tone-captured':t==='missed'?'tone-missed':'tone-seen';
 const normalized=v=>String(v||'').trim();
+const dupLabel=v=>v?'Yes':'No';
 
 async function api(u,o={}){const r=await fetch(u,{cache:'no-store',...o});const d=await Q(r);if(!r.ok){const e=new Error(d.message||`HTTP ${r.status}`);e.code=d.code||'request_failed';throw e}return d}
 function theme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('beastsv2.theme',t)}
@@ -290,7 +292,7 @@ function renderCur(){
     I('mCap').textContent=C(d.currentMapCapturedChaos);
     I('mCost').textContent=C(d.currentMapCostChaos);
     I('mNet').innerHTML=N(d.currentMapNetChaos);
-    I('mDup').textContent=d.currentMapUsesDuplicatingScarab?'Yes':'No';
+    I('mDup').textContent=dupLabel(d.currentMapUsesDuplicatingScarab);
     I('mBreak').textContent=`Cost breakdown: ${costBreakdown(d.currentMapCostBreakdown)}`;
 
     const events=currentReplayEvents();
@@ -329,7 +331,13 @@ function filteredMaps(){
 function detailBeastTable(map){
     const bs=beastBreakdown(map);
     if(!bs.length)return '<span class="small">No tracked beasts recorded.</span>';
-    return `<table><thead><tr><th>Beast</th><th>Seen</th><th>Captured</th><th>Unit</th><th>Value</th></tr></thead><tbody>${bs.map(b=>`<tr><td>${E(b.beastName)}</td><td>${b.count||0}</td><td>${b.capturedCount||0}</td><td>${C(b.unitPriceChaos)}</td><td>${C(Number(b.capturedCount||0)*Number(b.unitPriceChaos||0))}</td></tr>`).join('')}</tbody></table>`;
+    const dupActive = Boolean(map?.usedBestiaryScarabOfDuplicating);
+    const dupNote = dupActive ? '<div class="small" style="margin-bottom:6px">Dup Scarab active: captured beasts are counted as duplicated.</div>' : '';
+    return `${dupNote}<table><thead><tr><th>Beast</th><th>Seen</th><th>Captured</th><th>Duped</th><th>Unit</th><th>Value</th></tr></thead><tbody>${bs.map(b=>{
+        const captured = Number(b.capturedCount||0);
+        const duped = dupActive && captured > 0 ? 'Yes' : 'No';
+        return `<tr><td>${E(b.beastName)}</td><td>${b.count||0}</td><td>${captured}</td><td>${duped}</td><td>${C(b.unitPriceChaos)}</td><td>${C(captured*Number(b.unitPriceChaos||0))}</td></tr>`;
+    }).join('')}</tbody></table>`;
 }
 
 function detailCostTable(map){
@@ -371,7 +379,7 @@ function renderMaps(){
     body.innerHTML=maps.map((m,i)=>{
         const id=stableMapRowId(m,i);
         const openClass=applyMapRowOpenState(id);
-        return `<tr class="row${openClass}" data-detail="${id}"><td>${E(m.areaName||m.areaHash||'n/a')}</td><td>${D(m.durationSeconds)}</td><td>${m.redBeastsFound||0}</td><td>${DT(m.firstRedSeenSeconds)}</td><td>${C(m.capturedChaos)}</td><td>${C(m.costChaos)}</td><td>${N(m.netChaos)}</td><td>${m.usedBestiaryScarabOfDuplicating?'Yes':'No'}</td><td>${E(LDT(m.completedAtDisplay,m.completedAtUtc))}</td></tr><tr id="${id}" class="detail${openClass}"><td colspan="9"><div class="detail-grid"><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Beast Breakdown</h2>${detailBeastTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Cost Breakdown</h2>${detailCostTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Replay Log</h2>${detailReplayTable(m)}</div></div></td></tr>`;
+        return `<tr class="row${openClass}" data-detail="${id}"><td>${E(m.areaName||m.areaHash||'n/a')}</td><td>${D(m.durationSeconds)}</td><td>${m.redBeastsFound||0}</td><td>${DT(m.firstRedSeenSeconds)}</td><td>${C(m.capturedChaos)}</td><td>${C(m.costChaos)}</td><td>${N(m.netChaos)}</td><td>${dupLabel(m.usedBestiaryScarabOfDuplicating)}</td><td>${E(LDT(m.completedAtDisplay,m.completedAtUtc))}</td></tr><tr id="${id}" class="detail${openClass}"><td colspan="9"><div class="detail-grid"><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Beast Breakdown</h2>${detailBeastTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Cost Breakdown</h2>${detailCostTable(m)}</div><div class="card" style="margin:0;padding:8px"><h2 style="margin-bottom:6px">Replay Log</h2>${detailReplayTable(m)}</div></div></td></tr>`;
     }).join('');
     renderDerived(maps);
 }

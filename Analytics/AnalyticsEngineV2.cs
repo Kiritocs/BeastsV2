@@ -106,6 +106,7 @@ internal static class AnalyticsEngineV2
                     BeastName = x.Key,
                     Count = x.Value,
                     CapturedCount = captured,
+                    IsDuplicated = usedBestiaryScarabOfDuplicating && captured > 0,
                     UnitPriceChaos = unitPrice,
                 };
             })

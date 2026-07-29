@@ -391,7 +391,8 @@ public partial class Main : BaseSettingsPlugin<Settings>
                           string.Equals(currentAreaHash, _trackedBeastOverlayCacheAreaHash, StringComparison.Ordinal);
         var instanceMatches = _trackedBeastOverlayCacheAreaInstanceId >= 0 && currentAreaInstanceId >= 0 &&
                               currentAreaInstanceId == _trackedBeastOverlayCacheAreaInstanceId;
-        return hashMatches || instanceMatches;
+        return instanceMatches || (!instanceMatches && hashMatches &&
+                                  _trackedBeastOverlayCacheAreaInstanceId < 0 && currentAreaInstanceId < 0);
     }
 
     public override void EntityAdded(Entity entity)
@@ -444,6 +445,13 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         foreach (var (id, entity) in _trackedBeastEntities)
         {
+            if (HasKillOnExpiryBuff(entity))
+            {
+                staleTrackedIds.Add(id);
+                _trackedBeastOverlayCacheById.Remove(id);
+                continue;
+            }
+
             if (liveTrackedBeasts.ContainsKey(id))
             {
                 continue;
@@ -468,6 +476,13 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         foreach (var (id, entity) in liveTrackedBeasts)
         {
+            if (HasKillOnExpiryBuff(entity))
+            {
+                _trackedBeastEntities.Remove(id);
+                _trackedBeastOverlayCacheById.Remove(id);
+                continue;
+            }
+
             _trackedBeastEntities[id] = entity;
 
             UpdateTrackedBeastOverlayCache(entity, isLive: true);
@@ -491,8 +506,9 @@ public partial class Main : BaseSettingsPlugin<Settings>
             return;
         }
 
+        var captureMultiplier = _currentMapUsedDuplicatingScarab ? 2 : 1;
         _currentMapValuableBeastCapturedCounts[beastName] =
-            _currentMapValuableBeastCapturedCounts.TryGetValue(beastName, out var prev) ? prev + 1 : 1;
+            _currentMapValuableBeastCapturedCounts.TryGetValue(beastName, out var prev) ? prev + captureMultiplier : captureMultiplier;
         RegisterCurrentMapReplayCaptured(entityId, beastName, now);
     }
 
@@ -728,7 +744,12 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         overlayInfo = default;
 
-        if (entity == null)
+        if (entity == null || entity.IsValid != true)
+        {
+            return false;
+        }
+
+        if (HasKillOnExpiryBuff(entity))
         {
             return false;
         }
@@ -793,18 +814,22 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
         var shouldCollectLiveTrackedBeasts = !isInMirage && mapRender.ShowBeastLabelsInWorld.Value;
         IReadOnlyList<TrackedBeastRenderInfo> liveTrackedBeasts = Array.Empty<TrackedBeastRenderInfo>();
-        if (shouldCollectLiveTrackedBeasts)
-        {
-            liveTrackedBeasts = CollectTrackedBeastRenderInfo();
-        }
-
         var shouldCollectTrackedBeastOverlays = !isInMirage &&
                                                ((mapRender.ShowBeastsOnMap.Value && IsLargeMapVisible()) ||
                                                 mapRender.ShowTrackedBeastsWindow.Value);
         IReadOnlyList<TrackedBeastMapMarkerInfo> trackedBeastOverlays = Array.Empty<TrackedBeastMapMarkerInfo>();
-        if (shouldCollectTrackedBeastOverlays)
+
+        if (!_shouldRenderFinalizedMapCompletionOverlay)
         {
-            trackedBeastOverlays = CollectTrackedBeastOverlayInfoThrottled(now);
+            if (shouldCollectLiveTrackedBeasts)
+            {
+                liveTrackedBeasts = CollectTrackedBeastRenderInfo();
+            }
+
+            if (shouldCollectTrackedBeastOverlays)
+            {
+                trackedBeastOverlays = CollectTrackedBeastOverlayInfoThrottled(now);
+            }
         }
 
         RenderMapOverlays(mapRender, liveTrackedBeasts, trackedBeastOverlays, isInMirage);
@@ -1171,8 +1196,9 @@ public partial class Main : BaseSettingsPlugin<Settings>
         foreach (var (beastName, count) in _currentMapValuableBeastCounts)
         {
             var alreadyCaptured = _currentMapValuableBeastCapturedCounts.TryGetValue(beastName, out var prev) ? prev : 0;
-            if (alreadyCaptured < count)
-                _currentMapValuableBeastCapturedCounts[beastName] = count;
+            var targetCaptured = count * (_currentMapUsedDuplicatingScarab ? 2 : 1);
+            if (alreadyCaptured < targetCaptured)
+                _currentMapValuableBeastCapturedCounts[beastName] = targetCaptured;
         }
 
         foreach (var id in _trackedBeastCompletionIds)
@@ -1188,10 +1214,15 @@ public partial class Main : BaseSettingsPlugin<Settings>
         }
     }
 
+    private static bool HasKillOnExpiryBuff(Entity entity)
+    {
+        return entity?.Buffs?.Find(buff => string.Equals(buff.Name, KillOnExpiryBuffName, StringComparison.Ordinal)) != null;
+    }
+
     private static bool IsRareBeast(Entity entity)
     {
         return entity.Rarity == MonsterRarity.Rare &&
-               entity.Buffs?.Find(buff => string.Equals(buff.Name, KillOnExpiryBuffName, StringComparison.Ordinal)) == null &&
+               !HasKillOnExpiryBuff(entity) &&
                IsCapturableMonsterStat is { } capturableStat &&
                entity.Stats?.ContainsKey(capturableStat) == true;
     }

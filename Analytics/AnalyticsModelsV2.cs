@@ -14,6 +14,7 @@ public sealed class MapBeastStat
     public string BeastName { get; set; } = string.Empty;
     public int Count { get; set; }
     public int CapturedCount { get; set; }
+    public bool IsDuplicated { get; set; }
     public double UnitPriceChaos { get; set; }
     public double CapturedChaos => CapturedCount * UnitPriceChaos;
 }

@@ -74,8 +74,9 @@ internal sealed class AreaTransitionCoordinator
                           string.Equals(newAreaHash, previousAreaHash, StringComparison.Ordinal);
         var instanceMatches = previousAreaInstanceId >= 0 && newAreaInstanceId >= 0 &&
                               newAreaInstanceId == previousAreaInstanceId;
+        var sameArea = instanceMatches || (!instanceMatches && hashMatches && previousAreaInstanceId < 0 && newAreaInstanceId < 0);
 
-        if (hashMatches || instanceMatches)
+        if (sameArea)
         {
             map.ActiveMapAreaHash = newAreaHash;
             map.ActiveMapAreaName = newAreaName;
