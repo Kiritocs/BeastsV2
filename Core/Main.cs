@@ -1296,7 +1296,6 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private bool AreAllTrackedValuableBeastsCaptured()
     {
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
-        var hasTrackedBeasts = false;
 
         foreach (var id in _trackedBeastCompletionIds)
         {
@@ -1310,14 +1309,13 @@ public partial class Main : BaseSettingsPlugin<Settings>
                 continue;
             }
 
-            hasTrackedBeasts = true;
             if (!_capturedBeastIds.Contains(id))
             {
                 return false;
             }
         }
 
-        return hasTrackedBeasts;
+        return true;
     }
 
     private void HandleBestiaryClipboardAutoCopy()
