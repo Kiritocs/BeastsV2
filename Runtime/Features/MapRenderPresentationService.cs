@@ -13,10 +13,13 @@ internal sealed record MapRenderPresentationCallbacks(
     Func<string, string> GetBeastPriceTextOrNull,
     Func<Color> GetWorldCapturedBeastColor,
     Func<Color> GetWorldBeastColor,
+    Func<Color> GetWorldTalismanOnlyBeastColor,
     Func<Color> GetWorldCapturedCircleColor,
     Func<Color> GetWorldCaptureRingColor,
     Func<Color> GetWorldBeastCircleColor,
-    Func<Color> GetTrackedWindowBeastColor);
+    Func<Color> GetWorldTalismanOnlyCircleColor,
+    Func<Color> GetTrackedWindowBeastColor,
+    Func<Color> GetTrackedWindowTalismanOnlyBeastColor);
 
 internal sealed class MapRenderPresentationService
 {
@@ -78,23 +81,33 @@ internal sealed class MapRenderPresentationService
         BuildMarkerTexts(label, captureState, out primaryText, out secondaryText);
     }
 
-    public Color GetWorldBeastColor(BeastCaptureState captureState)
+    // Capture state wins over the talisman-only color wherever both apply: once a beast is being
+    // captured, that state is the more urgent thing to read off the label.
+    public Color GetWorldBeastColor(BeastCaptureState captureState, bool isTalismanOnly)
     {
-        return captureState != BeastCaptureState.None ? _callbacks.GetWorldCapturedBeastColor() : _callbacks.GetWorldBeastColor();
+        if (captureState != BeastCaptureState.None)
+        {
+            return _callbacks.GetWorldCapturedBeastColor();
+        }
+
+        return isTalismanOnly ? _callbacks.GetWorldTalismanOnlyBeastColor() : _callbacks.GetWorldBeastColor();
     }
 
-    public Color GetWorldBeastCircleColor(BeastCaptureState captureState)
+    public Color GetWorldBeastCircleColor(BeastCaptureState captureState, bool isTalismanOnly)
     {
         return captureState switch
         {
             BeastCaptureState.Captured => _callbacks.GetWorldCapturedCircleColor(),
             BeastCaptureState.Capturing => _callbacks.GetWorldCaptureRingColor(),
+            _ when isTalismanOnly => _callbacks.GetWorldTalismanOnlyCircleColor(),
             _ => _callbacks.GetWorldBeastCircleColor(),
         };
     }
 
-    public Color GetTrackedWindowBeastColor()
+    public Color GetTrackedWindowBeastColor(bool isTalismanOnly)
     {
-        return _callbacks.GetTrackedWindowBeastColor();
+        return isTalismanOnly
+            ? _callbacks.GetTrackedWindowTalismanOnlyBeastColor()
+            : _callbacks.GetTrackedWindowBeastColor();
     }
 }

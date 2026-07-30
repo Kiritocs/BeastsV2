@@ -14,10 +14,11 @@ internal sealed record MapRenderBeastOverlayCallbacks(
     Func<bool> GetReplaceNameAndPriceWithStatusText,
     Func<Color> GetWorldPriceTextColor,
     Func<string, string> GetBeastPriceTextOrNull,
-    Func<BeastCaptureState, Color> GetWorldBeastColor,
+    Func<string, bool> IsTalismanOnlyBeast,
+    Func<BeastCaptureState, bool, Color> GetWorldBeastColor,
     Func<BeastCaptureState, string> GetDisplayedCaptureStatusText,
     Func<BeastCaptureState, Color> GetDisplayedCaptureStatusColor,
-    Func<BeastCaptureState, Color> GetWorldBeastCircleColor,
+    Func<BeastCaptureState, bool, Color> GetWorldBeastCircleColor,
     Func<float> GetWorldBeastCircleRadius,
     Action<string, Vector2, Color> DrawOutlinedText,
     Action<Vector3, float, Color> DrawFilledCircleInWorld,
@@ -45,7 +46,8 @@ internal sealed class MapRenderBeastOverlayService
             var worldPos = _callbacks.GetWorldPosition(beast.Positioned);
             var screenPos = _callbacks.WorldToScreen(worldPos);
             var hasCaptureState = beast.CaptureState != BeastCaptureState.None;
-            var worldBeastColor = _callbacks.GetWorldBeastColor(beast.CaptureState);
+            var isTalismanOnly = _callbacks.IsTalismanOnlyBeast(beast.BeastName);
+            var worldBeastColor = _callbacks.GetWorldBeastColor(beast.CaptureState, isTalismanOnly);
             var capturedStatusText = _callbacks.GetDisplayedCaptureStatusText(beast.CaptureState);
             var capturedStatusColor = _callbacks.GetDisplayedCaptureStatusColor(beast.CaptureState);
             var useStatusOnlyText = hasCaptureState && replaceNameAndPriceWithStatusText;
@@ -72,7 +74,7 @@ internal sealed class MapRenderBeastOverlayService
                 }
             }
 
-            _callbacks.DrawFilledCircleInWorld(worldPos, worldBeastCircleRadius, _callbacks.GetWorldBeastCircleColor(beast.CaptureState));
+            _callbacks.DrawFilledCircleInWorld(worldPos, worldBeastCircleRadius, _callbacks.GetWorldBeastCircleColor(beast.CaptureState, isTalismanOnly));
         }
     }
 

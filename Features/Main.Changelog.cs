@@ -8,6 +8,13 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 07, 30, 2,
+            "Selecting a talisman in Tracking: Talisman Prices now shows its beast on overlays by itself, without adding that beast to Tracked Beasts.",
+            "Beasts shown only for a talisman stay out of the auto-generated Bestiary regex, the tracked-completion check, and analytics, since they are killed for the drop instead of captured. A beast ticked in both lists still counts everywhere as before.",
+            "Those beasts are drawn in their own colors, configurable under Tracking: Markers & Prices -> Colors as World Talisman-Only Beast Text Color, World Talisman-Only Circle Color, Map Label Talisman-Only Text Color, and Tracked Window Talisman-Only Color.",
+            "Their labels always include the talisman price even when Add Talisman Price To Beast Price is off, since that price is the reason they are on screen.",
+            "The Style Preview window now has a talisman-only row for each label type so the new colors can be tuned without finding a live beast.",
+            "Removed Tracking: Talisman Prices -> Track Beasts For Selection and the untracked-beast warnings, which existed only because talisman selection used to depend on the Tracked Beasts list."),
         new(2026, 07, 30, 1,
             "Added Tracking: Talisman Prices, mapping all 41 beasts that drop a talisman to their talisman base type, implicit modifier, and current poe.ninja price.",
             "Talisman price fetching is off by default. Turn on Tracking: Talisman Prices -> Track Talisman Prices to enable it, since the poe.ninja base-type feed is large.",

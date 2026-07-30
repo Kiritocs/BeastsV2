@@ -6,18 +6,20 @@ using SharpDX;
 namespace BeastsV2.Runtime.Features;
 
 internal sealed record MapRenderImGuiOverlayCallbacks(
-    Action<string, BeastCaptureState> DrawPreviewWorldLabel,
-    Action<string, BeastCaptureState> DrawPreviewMapLabel,
-    Action<string, string, BeastCaptureState> DrawTrackedBeastPreviewRow,
+    Action<string, BeastCaptureState, bool> DrawPreviewWorldLabel,
+    Action<string, BeastCaptureState, bool> DrawPreviewMapLabel,
+    Action<string, string, BeastCaptureState, bool> DrawTrackedBeastPreviewRow,
     Action DrawPreviewCircles,
-    Func<Color> GetTrackedWindowBeastColor,
+    Func<bool, Color> GetTrackedWindowBeastColor,
     Func<string, string> GetBeastPriceTextOrNull,
+    Func<string, bool> IsTalismanOnlyBeast,
     Func<BeastCaptureState, Color> GetDisplayedCaptureStatusColor,
     Func<BeastCaptureState, string> GetDisplayedCaptureStatusText);
 
 internal sealed class MapRenderImGuiOverlayService
 {
     private const string PreviewBeastName = "Craicic Croaker";
+    private const string TalismanOnlyRowHint = "Second row shows the talisman-only styling.";
     private readonly MapRenderImGuiOverlayCallbacks _callbacks;
 
     public MapRenderImGuiOverlayService(MapRenderImGuiOverlayCallbacks callbacks)
@@ -36,27 +38,33 @@ internal sealed class MapRenderImGuiOverlayService
         }
 
         ImGui.Text("World Label Preview");
-        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.None);
-        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.Capturing);
-        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.Captured);
+        ImGui.TextDisabled(TalismanOnlyRowHint);
+        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.None, false);
+        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.None, true);
+        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.Capturing, false);
+        _callbacks.DrawPreviewWorldLabel(PreviewBeastName, BeastCaptureState.Captured, false);
 
         ImGui.Separator();
         ImGui.Text("Large Map Label Preview");
-        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.None);
-        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.Capturing);
-        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.Captured);
+        ImGui.TextDisabled(TalismanOnlyRowHint);
+        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.None, false);
+        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.None, true);
+        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.Capturing, false);
+        _callbacks.DrawPreviewMapLabel(PreviewBeastName, BeastCaptureState.Captured, false);
 
         ImGui.Separator();
         ImGui.Text("Tracked Beasts Window Preview");
+        ImGui.TextDisabled(TalismanOnlyRowHint);
         if (ImGui.BeginTable("##TrackedWindowPreviewTable", 2,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersOuter | ImGuiTableFlags.BordersV))
         {
             ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 52);
             ImGui.TableSetupColumn("Beast", ImGuiTableColumnFlags.WidthStretch);
 
-            _callbacks.DrawTrackedBeastPreviewRow("1c", PreviewBeastName, BeastCaptureState.None);
-            _callbacks.DrawTrackedBeastPreviewRow("1c", PreviewBeastName, BeastCaptureState.Capturing);
-            _callbacks.DrawTrackedBeastPreviewRow("1c", PreviewBeastName, BeastCaptureState.Captured);
+            _callbacks.DrawTrackedBeastPreviewRow("1c", PreviewBeastName, BeastCaptureState.None, false);
+            _callbacks.DrawTrackedBeastPreviewRow("1c +1c", PreviewBeastName, BeastCaptureState.None, true);
+            _callbacks.DrawTrackedBeastPreviewRow("1c", PreviewBeastName, BeastCaptureState.Capturing, false);
+            _callbacks.DrawTrackedBeastPreviewRow("1c", PreviewBeastName, BeastCaptureState.Captured, false);
 
             ImGui.EndTable();
         }
@@ -75,7 +83,8 @@ internal sealed class MapRenderImGuiOverlayService
             return;
         }
 
-        var trackedWindowBeastColor = BeastsV2Helpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor());
+        var trackedWindowBeastColor = BeastsV2Helpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor(false));
+        var talismanOnlyBeastColor = BeastsV2Helpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor(true));
 
         ImGui.SetNextWindowBgAlpha(0.6f);
         ImGui.Begin("##RareBeastTrackerWindow", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize);
@@ -92,7 +101,9 @@ internal sealed class MapRenderImGuiOverlayService
                 ImGui.TableNextColumn();
                 ImGui.Text(_callbacks.GetBeastPriceTextOrNull(beast.BeastName) ?? "?");
                 ImGui.TableNextColumn();
-                ImGui.TextColored(trackedWindowBeastColor, beast.BeastName);
+                ImGui.TextColored(
+                    _callbacks.IsTalismanOnlyBeast(beast.BeastName) ? talismanOnlyBeastColor : trackedWindowBeastColor,
+                    beast.BeastName);
                 if (beast.CaptureState != BeastCaptureState.None)
                 {
                     ImGui.SameLine(0, 0);

@@ -10,14 +10,16 @@ internal sealed record MapRenderLabelCallbacks(
     Func<Color> GetWorldPriceTextColor,
     Func<Color> GetMapMarkerBackgroundColor,
     Func<Color> GetMapMarkerTextColor,
+    Func<Color> GetMapMarkerTalismanOnlyTextColor,
     Func<float> GetMapLabelPaddingX,
     Func<float> GetMapLabelPaddingY,
     Func<bool> GetReplaceNameAndPriceWithStatusText,
-    Func<BeastCaptureState, Color> GetWorldBeastColor,
+    Func<string, bool> IsTalismanOnlyBeast,
+    Func<BeastCaptureState, bool, Color> GetWorldBeastColor,
     Func<BeastCaptureState, string> GetDisplayedCaptureStatusText,
     Func<BeastCaptureState, Color> GetDisplayedCaptureStatusColor,
-    Func<BeastCaptureState, Color> GetWorldBeastCircleColor,
-    Func<Color> GetTrackedWindowBeastColor,
+    Func<BeastCaptureState, bool, Color> GetWorldBeastCircleColor,
+    Func<bool, Color> GetTrackedWindowBeastColor,
     Func<string, BeastCaptureState, (string PrimaryText, string SecondaryText)> BuildPreviewMapMarkerTexts,
     Func<string, BeastCaptureState, (string PrimaryText, string SecondaryText)> BuildMapMarkerTexts,
     Func<float> GetWorldBeastCircleRadius,
@@ -37,6 +39,7 @@ internal sealed class MapRenderLabelService
     public void DrawMapMarker(string beastName, BeastCaptureState captureState, Vector2 pos)
     {
         var (primaryText, secondaryText) = _callbacks.BuildMapMarkerTexts(beastName, captureState);
+        var isTalismanOnly = _callbacks.IsTalismanOnlyBeast(beastName);
 
         DrawMapLabel(
             primaryText,
@@ -44,20 +47,20 @@ internal sealed class MapRenderLabelService
             pos,
             captureState != BeastCaptureState.None && _callbacks.GetReplaceNameAndPriceWithStatusText()
                 ? _callbacks.GetDisplayedCaptureStatusColor(captureState)
-                : _callbacks.GetMapMarkerTextColor(),
+                : GetMapMarkerPrimaryColor(isTalismanOnly),
             _callbacks.GetDisplayedCaptureStatusColor(captureState));
     }
 
-    public void DrawPreviewWorldLabel(string beastName, BeastCaptureState captureState)
+    public void DrawPreviewWorldLabel(string beastName, BeastCaptureState captureState, bool isTalismanOnly)
     {
         var drawList = ImGui.GetWindowDrawList();
         var size = new Vector2(280, 88);
         var origin = ImGui.GetCursorScreenPos();
-        ImGui.InvisibleButton($"##WorldPreview{beastName}{captureState}", size);
+        ImGui.InvisibleButton($"##WorldPreview{beastName}{captureState}{isTalismanOnly}", size);
 
         var centerX = origin.X + size.X / 2f;
         var lineSpacing = _callbacks.GetWorldTextLineSpacing();
-        var worldBeastColor = _callbacks.GetWorldBeastColor(captureState);
+        var worldBeastColor = _callbacks.GetWorldBeastColor(captureState, isTalismanOnly);
         var captureTextColor = _callbacks.GetDisplayedCaptureStatusColor(captureState);
         var statusText = _callbacks.GetDisplayedCaptureStatusText(captureState);
         var useCaptureTextOnly = captureState != BeastCaptureState.None && _callbacks.GetReplaceNameAndPriceWithStatusText();
@@ -77,15 +80,15 @@ internal sealed class MapRenderLabelService
         }
 
         var circleCenter = new Vector2(origin.X + 24, origin.Y + size.Y - 22);
-        DrawPreviewCircle(drawList, circleCenter, _callbacks.GetWorldBeastCircleRadius(), captureState);
+        DrawPreviewCircle(drawList, circleCenter, _callbacks.GetWorldBeastCircleRadius(), captureState, isTalismanOnly);
     }
 
-    public void DrawPreviewMapLabel(string beastName, BeastCaptureState captureState)
+    public void DrawPreviewMapLabel(string beastName, BeastCaptureState captureState, bool isTalismanOnly)
     {
         var drawList = ImGui.GetWindowDrawList();
         var size = new Vector2(280, 72);
         var origin = ImGui.GetCursorScreenPos();
-        ImGui.InvisibleButton($"##MapPreview{beastName}{captureState}", size);
+        ImGui.InvisibleButton($"##MapPreview{beastName}{captureState}{isTalismanOnly}", size);
 
         var (primaryText, secondaryText) = _callbacks.BuildPreviewMapMarkerTexts(beastName, captureState);
 
@@ -97,17 +100,17 @@ internal sealed class MapRenderLabelService
             _callbacks.GetMapMarkerBackgroundColor(),
             captureState != BeastCaptureState.None && _callbacks.GetReplaceNameAndPriceWithStatusText()
                 ? _callbacks.GetDisplayedCaptureStatusColor(captureState)
-                : _callbacks.GetMapMarkerTextColor(),
+                : GetMapMarkerPrimaryColor(isTalismanOnly),
             _callbacks.GetDisplayedCaptureStatusColor(captureState));
     }
 
-    public void DrawTrackedBeastPreviewRow(string priceText, string beastName, BeastCaptureState captureState)
+    public void DrawTrackedBeastPreviewRow(string priceText, string beastName, BeastCaptureState captureState, bool isTalismanOnly)
     {
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
         ImGui.Text(priceText);
         ImGui.TableNextColumn();
-        ImGui.TextColored(BeastsV2Helpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor()), beastName);
+        ImGui.TextColored(BeastsV2Helpers.ToImGuiColor(_callbacks.GetTrackedWindowBeastColor(isTalismanOnly)), beastName);
         if (captureState != BeastCaptureState.None)
         {
             ImGui.SameLine(0, 0);
@@ -123,21 +126,31 @@ internal sealed class MapRenderLabelService
         var origin = ImGui.GetCursorScreenPos();
         ImGui.InvisibleButton("##CirclePreview", size);
 
-        var normalCenter = new Vector2(origin.X + 46, origin.Y + size.Y / 2f);
-        var capturingCenter = new Vector2(origin.X + 140, origin.Y + size.Y / 2f);
-        var capturedCenter = new Vector2(origin.X + 234, origin.Y + size.Y / 2f);
-        DrawPreviewCircle(drawList, normalCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.None);
-        DrawPreviewCircle(drawList, capturingCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.Capturing);
-        DrawPreviewCircle(drawList, capturedCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.Captured);
-        drawList.AddText(new Vector2(normalCenter.X - 26, normalCenter.Y + 18), 0xFFFFFFFF, "Normal");
+        var normalCenter = new Vector2(origin.X + 36, origin.Y + size.Y / 2f);
+        var talismanOnlyCenter = new Vector2(origin.X + 118, origin.Y + size.Y / 2f);
+        var capturingCenter = new Vector2(origin.X + 196, origin.Y + size.Y / 2f);
+        var capturedCenter = new Vector2(origin.X + 260, origin.Y + size.Y / 2f);
+        DrawPreviewCircle(drawList, normalCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.None, isTalismanOnly: false);
+        DrawPreviewCircle(drawList, talismanOnlyCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.None, isTalismanOnly: true);
+        DrawPreviewCircle(drawList, capturingCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.Capturing, isTalismanOnly: false);
+        DrawPreviewCircle(drawList, capturedCenter, _callbacks.GetWorldBeastCircleRadius(), BeastCaptureState.Captured, isTalismanOnly: false);
+        drawList.AddText(new Vector2(normalCenter.X - 22, normalCenter.Y + 18), 0xFFFFFFFF, "Normal");
+        drawList.AddText(new Vector2(talismanOnlyCenter.X - 30, talismanOnlyCenter.Y + 18), 0xFFFFFFFF, "Talisman");
         drawList.AddText(new Vector2(capturingCenter.X - 30, capturingCenter.Y + 18), 0xFFFFFFFF, _callbacks.GetDisplayedCaptureStatusText(BeastCaptureState.Capturing));
         drawList.AddText(new Vector2(capturedCenter.X - 26, capturedCenter.Y + 18), 0xFFFFFFFF, _callbacks.GetDisplayedCaptureStatusText(BeastCaptureState.Captured));
     }
 
-    private void DrawPreviewCircle(ImDrawListPtr drawList, Vector2 center, float configuredRadius, BeastCaptureState captureState)
+    private Color GetMapMarkerPrimaryColor(bool isTalismanOnly)
+    {
+        return isTalismanOnly
+            ? _callbacks.GetMapMarkerTalismanOnlyTextColor()
+            : _callbacks.GetMapMarkerTextColor();
+    }
+
+    private void DrawPreviewCircle(ImDrawListPtr drawList, Vector2 center, float configuredRadius, BeastCaptureState captureState, bool isTalismanOnly)
     {
         var radius = 8f + configuredRadius / 200f * 18f;
-        var circleColor = _callbacks.GetWorldBeastCircleColor(captureState);
+        var circleColor = _callbacks.GetWorldBeastCircleColor(captureState, isTalismanOnly);
 
         var outlineColor = BeastsV2Helpers.ToImGuiColorU32(circleColor);
         var fillOpacity = _callbacks.GetWorldBeastCircleFillOpacityPercent() / 100f;

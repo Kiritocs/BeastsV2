@@ -406,10 +406,13 @@ public partial class Main
             beastName => BeastLookup.TryGetBeastPriceText(beastName, out var priceText) ? priceText : null,
             () => Settings.MapRender.Colors.WorldCapturedBeastColor.Value,
             () => Settings.MapRender.Colors.WorldBeastColor.Value,
+            () => Settings.MapRender.Colors.WorldTalismanOnlyBeastColor.Value,
             () => Settings.MapRender.Colors.WorldCapturedCircleColor.Value,
             () => Settings.MapRender.Colors.WorldCaptureRingColor.Value,
             () => Settings.MapRender.Colors.WorldBeastCircleColor.Value,
-            () => Settings.MapRender.Colors.TrackedWindowBeastColor.Value));
+            () => Settings.MapRender.Colors.WorldTalismanOnlyCircleColor.Value,
+            () => Settings.MapRender.Colors.TrackedWindowBeastColor.Value,
+            () => Settings.MapRender.Colors.TrackedWindowTalismanOnlyBeastColor.Value));
 
     private BestiaryCapturedBeastsViewService BestiaryCapturedBeastsView => _bestiaryCapturedBeastsViewService ??= new BestiaryCapturedBeastsViewService(
         new BestiaryCapturedBeastsViewCallbacks(
@@ -474,6 +477,7 @@ public partial class Main
             DrawPreviewCircles,
             GetTrackedWindowBeastColor,
             beastName => BeastLookup.TryGetBeastPriceText(beastName, out var priceText) ? priceText : null,
+            IsTalismanOnlyTrackedBeast,
             GetDisplayedCaptureStatusColor,
             GetDisplayedCaptureStatusText));
 
@@ -485,6 +489,7 @@ public partial class Main
             () => Settings.MapRender.CapturedText.ReplaceNameAndPriceWithStatusText.Value,
             () => Settings.MapRender.Colors.WorldPriceTextColor.Value,
             beastName => BeastLookup.TryGetBeastPriceText(beastName, out var priceText) ? priceText : null,
+            IsTalismanOnlyTrackedBeast,
             GetWorldBeastColor,
             GetDisplayedCaptureStatusText,
             GetDisplayedCaptureStatusColor,
@@ -501,9 +506,11 @@ public partial class Main
             () => Settings.MapRender.Colors.WorldPriceTextColor.Value,
             () => Settings.MapRender.Colors.MapMarkerBackgroundColor.Value,
             () => Settings.MapRender.Colors.MapMarkerTextColor.Value,
+            () => Settings.MapRender.Colors.MapMarkerTalismanOnlyTextColor.Value,
             () => Settings.MapRender.Layout.MapLabelPaddingX.Value,
             () => Settings.MapRender.Layout.MapLabelPaddingY.Value,
             () => Settings.MapRender.CapturedText.ReplaceNameAndPriceWithStatusText.Value,
+            IsTalismanOnlyTrackedBeast,
             GetWorldBeastColor,
             GetDisplayedCaptureStatusText,
             GetDisplayedCaptureStatusColor,
@@ -844,7 +851,6 @@ public partial class Main
             SelectAllTalismans,
             DeselectAllTalismans,
             SelectTalismansWorth15ChaosOrMore,
-            TrackBeastsForSelectedTalismans,
             DrawTalismanPricesSummaryPanel,
             DrawTalismanPickerPanel,
             DrawStashAutomationSummaryPanel,

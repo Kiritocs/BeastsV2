@@ -572,13 +572,12 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         _trackedBeastRenderBuffer.Clear();
         var showEnabledOnly = Settings.MapRender.ShowEnabledOnly.Value;
-        var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
 
         foreach (var (_, entity) in _trackedBeastEntities)
         {
             if (!entity.IsValid) continue;
             if (!TryGetTrackedBeastNameCached(entity.Metadata, out var beastName)) continue;
-            if (showEnabledOnly && !enabledBeasts.Contains(beastName)) continue;
+            if (showEnabledOnly && !IsBeastShownWhileTrackedOnly(beastName)) continue;
 
             var captureState = GetBeastCaptureState(entity);
             var positioned = entity.GetComponent<Positioned>();
@@ -626,7 +625,6 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         _trackedBeastOverlayBuffer.Clear();
         var showEnabledOnly = Settings.MapRender.ShowEnabledOnly.Value;
-        var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
         var now = DateTime.UtcNow;
         var shouldIncludeCachedOverlays = Settings.MapRender.ShowCachedTrackedBeasts.Value &&
                                           IsTrackedBeastOverlayCacheInCurrentAreaScope();
@@ -645,7 +643,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
                 continue;
             }
 
-            if (showEnabledOnly && !enabledBeasts.Contains(liveOverlayInfo.BeastName))
+            if (showEnabledOnly && !IsBeastShownWhileTrackedOnly(liveOverlayInfo.BeastName))
             {
                 continue;
             }
@@ -687,7 +685,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
                 continue;
             }
 
-            if (showEnabledOnly && !enabledBeasts.Contains(overlayInfo.BeastName))
+            if (showEnabledOnly && !IsBeastShownWhileTrackedOnly(overlayInfo.BeastName))
             {
                 continue;
             }
@@ -1317,6 +1315,10 @@ public partial class Main : BaseSettingsPlugin<Settings>
         _renderAllTrackedValuableBeastsCaptured = _renderAllBeastsFound && allTrackedValuableBeastsCaptured;
     }
 
+    /// <summary>
+    /// Completion only considers Tracked Beasts. Talisman-only beasts have nothing to capture, so
+    /// leaving one alive must not hold the map open.
+    /// </summary>
     private bool AreAllTrackedValuableBeastsCaptured()
     {
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
@@ -1398,6 +1400,10 @@ public partial class Main : BaseSettingsPlugin<Settings>
             : (Settings.BestiaryClipboard.BeastRegex.Value ?? string.Empty);
     }
 
+    /// <summary>
+    /// Built from Tracked Beasts only, never from talisman selection: a beast picked for its talisman
+    /// drop is killed rather than captured, so it must not end up in the Bestiary search.
+    /// </summary>
     private string BuildAutoRegexFromEnabledBeasts()
     {
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;

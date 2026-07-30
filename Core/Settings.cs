@@ -594,7 +594,7 @@ public class BeastPricesSettings
             : new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
     }
 
-    [Menu("Tracked Beasts", "Pick which beasts are considered valuable. Enabled beasts appear in map markers, are counted in analytics, and are included in the auto-generated Bestiary search regex.")]
+    [Menu("Tracked Beasts", "Pick which beasts are considered valuable. Enabled beasts appear in map markers, are counted in analytics, and are included in the auto-generated Bestiary search regex. Beasts enabled only in Tracking: Talisman Prices are drawn as well, but stay out of the regex and analytics.")]
     [JsonIgnore] public CustomNode BeastPickerPanel { get; set; } = new();
 }
 
@@ -608,7 +608,7 @@ public class TalismanPricesSettings
     [Menu("Track Talisman Prices", "Fetch talisman prices from poe.ninja whenever beast prices are refreshed. Off by default because the base-type feed is large, so only turn this on if you want talisman pricing.")]
     public ToggleNode Enable { get; set; } = new(false);
 
-    [Menu("Add Talisman Price To Beast Price", "Show each beast's price with its talisman price added on, as \"95c +3c\". Applies to world and large-map beast labels, the tracked beasts window, and the Tracked Beasts list under Tracking: Price Data. Only affects talismans enabled in the mapping list below.")]
+    [Menu("Add Talisman Price To Beast Price", "Show each beast's price with its talisman price added on, as \"95c +3c\". Applies to world and large-map beast labels, the tracked beasts window, and the Tracked Beasts list under Tracking: Price Data. Only affects talismans enabled in the mapping list below. Beasts shown purely for a selected talisman always include it, since that price is the reason they are on screen.")]
     [JsonProperty("ShowOnOverlay")]
     public ToggleNode CombineWithBeastPrice { get; set; } = new(false);
 
@@ -620,9 +620,6 @@ public class TalismanPricesSettings
 
     [Menu("Select 15c+", "Enable only talismans whose currently fetched poe.ninja price is 15 chaos or more.")]
     public ButtonNode SelectTalismansWorth15ChaosOrMore { get; set; } = new();
-
-    [Menu("Track Beasts For Selection", "Add every beast that drops one of your selected talismans to the Tracked Beasts list under Tracking: Price Data, so those beasts actually show up on overlays and in the Bestiary regex. Selecting any unique talisman also adds the four Spirit Beasts.")]
-    public ButtonNode TrackBeastsForSelectedTalismans { get; set; } = new();
 
     [JsonIgnore]
     internal HashSet<string> EnabledTalismans { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
@@ -648,7 +645,7 @@ public class TalismanPricesSettings
             : new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
     }
 
-    [Menu("Talisman Mappings", "Each beast paired with the talisman it drops, that talisman's implicit, and its current poe.ninja price. Enable the ones you want to track.")]
+    [Menu("Talisman Mappings", "Each beast paired with the talisman it drops, that talisman's implicit, and its current poe.ninja price. Enabling one shows that beast on overlays in the talisman-only colors, without adding it to Tracked Beasts, so it stays out of the Bestiary regex, tracked completion, and analytics.")]
     [JsonIgnore] public CustomNode TalismanPickerPanel { get; set; } = new();
 }
 
@@ -1043,7 +1040,7 @@ public class MapRenderSettings
     [Menu("Show Bestiary Prices", "Show the poe.ninja price next to each beast in the Bestiary captured-beasts panel.")]
     public ToggleNode ShowPricesInBestiary { get; set; } = new(true);
 
-    [Menu("Only Show Enabled Beasts", "When on, only beasts you have checked in Price Data → Enabled Beasts are shown on markers, overlays, and the tracked beasts window. When off, all rare beasts are shown.")]
+    [Menu("Only Show Enabled Beasts", "When on, only beasts you have checked in Price Data → Enabled Beasts, plus beasts whose talisman you selected in Talisman Prices, are shown on markers, overlays, and the tracked beasts window. When off, all rare beasts are shown.")]
     public ToggleNode ShowEnabledOnly { get; set; } = new(true);
 
     [Menu("Show Name Only On Map Labels", "On the large overlay map, show only the beast name without the price. Useful if you find prices distracting on the map. Only affects map markers, not inventory or stash overlays.")]
@@ -1093,6 +1090,9 @@ public class MapRenderColorSettings
     [Menu("World Captured Beast Text Color", "Name text color for tracked beasts in the 3D world that are currently being captured or have already been safely captured.")]
     public ColorNode WorldCapturedBeastColor { get; set; } = new(new Color(255, 40, 40, 255));
 
+    [Menu("World Talisman-Only Beast Text Color", "Name text color in the 3D world for beasts shown only because their talisman is selected under Tracking: Talisman Prices. These are kill-for-the-drop targets, not capture targets.")]
+    public ColorNode WorldTalismanOnlyBeastColor { get; set; } = new(new Color(215, 170, 60, 255));
+
     [Menu("World Price Text Color", "Color of the price text shown below beast names on in-world labels.")]
     public ColorNode WorldPriceTextColor { get; set; } = new(new Color(255, 235, 120, 255));
 
@@ -1101,6 +1101,9 @@ public class MapRenderColorSettings
 
     [Menu("World Beast Circle Color", "Color of the ground circle drawn around tracked beasts that have not been captured yet.")]
     public ColorNode WorldBeastCircleColor { get; set; } = new(new Color(180, 20, 20, 255));
+
+    [Menu("World Talisman-Only Circle Color", "Color of the ground circle drawn around beasts shown only because their talisman is selected.")]
+    public ColorNode WorldTalismanOnlyCircleColor { get; set; } = new(new Color(215, 170, 60, 255));
 
     [Menu("World Capture Circle Color", "Color of the ground circle while a beast is actively being captured (first stage).")]
     public ColorNode WorldCaptureRingColor { get; set; } = new(Color.White);
@@ -1111,11 +1114,17 @@ public class MapRenderColorSettings
     [Menu("Map Label Text Color", "Primary text color for beast labels shown on the large overlay map.")]
     public ColorNode MapMarkerTextColor { get; set; } = new(new Color(180, 20, 20, 255));
 
+    [Menu("Map Label Talisman-Only Text Color", "Primary text color on the large overlay map for beasts shown only because their talisman is selected.")]
+    public ColorNode MapMarkerTalismanOnlyTextColor { get; set; } = new(new Color(215, 170, 60, 255));
+
     [Menu("Map Label Background Color", "Background color of the label box behind beast text on the large overlay map.")]
     public ColorNode MapMarkerBackgroundColor { get; set; } = new(new Color(0, 0, 0, 230));
 
     [Menu("Tracked Window Beast Color", "Text color for beast names in the floating tracked beasts window.")]
     public ColorNode TrackedWindowBeastColor { get; set; } = new(new Color(180, 20, 20, 255));
+
+    [Menu("Tracked Window Talisman-Only Color", "Text color in the floating tracked beasts window for beasts shown only because their talisman is selected.")]
+    public ColorNode TrackedWindowTalismanOnlyBeastColor { get; set; } = new(new Color(215, 170, 60, 255));
 }
 
 [Submenu(CollapsedByDefault = true)]

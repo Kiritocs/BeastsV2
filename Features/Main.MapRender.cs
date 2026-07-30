@@ -74,11 +74,11 @@ public partial class Main
 
     private void DrawMapRenderStylePreviewWindow() => MapRenderImGuiOverlays.DrawStylePreviewWindow();
 
-    private void DrawPreviewWorldLabel(string beastName, BeastCaptureState captureState) => MapRenderLabels.DrawPreviewWorldLabel(beastName, captureState);
+    private void DrawPreviewWorldLabel(string beastName, BeastCaptureState captureState, bool isTalismanOnly) => MapRenderLabels.DrawPreviewWorldLabel(beastName, captureState, isTalismanOnly);
 
-    private void DrawPreviewMapLabel(string beastName, BeastCaptureState captureState) => MapRenderLabels.DrawPreviewMapLabel(beastName, captureState);
+    private void DrawPreviewMapLabel(string beastName, BeastCaptureState captureState, bool isTalismanOnly) => MapRenderLabels.DrawPreviewMapLabel(beastName, captureState, isTalismanOnly);
 
-    private void DrawTrackedBeastPreviewRow(string priceText, string beastName, BeastCaptureState captureState) => MapRenderLabels.DrawTrackedBeastPreviewRow(priceText, beastName, captureState);
+    private void DrawTrackedBeastPreviewRow(string priceText, string beastName, BeastCaptureState captureState, bool isTalismanOnly) => MapRenderLabels.DrawTrackedBeastPreviewRow(priceText, beastName, captureState, isTalismanOnly);
 
     private void DrawPreviewCircles() => MapRenderLabels.DrawPreviewCircles();
 
@@ -139,11 +139,11 @@ public partial class Main
     private void BuildMapMarkerTexts(string beastName, BeastCaptureState captureState, out string primaryText, out string secondaryText) =>
         MapRenderPresentation.BuildMapMarkerTexts(beastName, captureState, out primaryText, out secondaryText);
 
-    private Color GetWorldBeastColor(BeastCaptureState captureState) => MapRenderPresentation.GetWorldBeastColor(captureState);
+    private Color GetWorldBeastColor(BeastCaptureState captureState, bool isTalismanOnly) => MapRenderPresentation.GetWorldBeastColor(captureState, isTalismanOnly);
 
-    private Color GetWorldBeastCircleColor(BeastCaptureState captureState) => MapRenderPresentation.GetWorldBeastCircleColor(captureState);
+    private Color GetWorldBeastCircleColor(BeastCaptureState captureState, bool isTalismanOnly) => MapRenderPresentation.GetWorldBeastCircleColor(captureState, isTalismanOnly);
 
-    private Color GetTrackedWindowBeastColor() => MapRenderPresentation.GetTrackedWindowBeastColor();
+    private Color GetTrackedWindowBeastColor(bool isTalismanOnly) => MapRenderPresentation.GetTrackedWindowBeastColor(isTalismanOnly);
 
 }
 

@@ -19,7 +19,6 @@ internal sealed record MainSettingsBindingTargets(
     Action SelectAllTalismans,
     Action DeselectAllTalismans,
     Action SelectTalismansWorth15ChaosOrMore,
-    Action TrackBeastsForSelectedTalismans,
     Action DrawTalismanPricesSummaryPanel,
     Action DrawTalismanPickerPanel,
     Action DrawStashAutomationSummaryPanel,
@@ -61,7 +60,6 @@ internal static class MainSettingsBindings
         talismanPrices.SelectAllTalismans.OnPressed = targets.SelectAllTalismans;
         talismanPrices.DeselectAllTalismans.OnPressed = targets.DeselectAllTalismans;
         talismanPrices.SelectTalismansWorth15ChaosOrMore.OnPressed = targets.SelectTalismansWorth15ChaosOrMore;
-        talismanPrices.TrackBeastsForSelectedTalismans.OnPressed = targets.TrackBeastsForSelectedTalismans;
         talismanPrices.SummaryPanel.DrawDelegate = targets.DrawTalismanPricesSummaryPanel;
         talismanPrices.TalismanPickerPanel.DrawDelegate = targets.DrawTalismanPickerPanel;
 

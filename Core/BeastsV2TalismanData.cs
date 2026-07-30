@@ -90,6 +90,9 @@ internal static class BeastsV2TalismanData
         "Fenumus, First of the Night",
     ];
 
+    private static readonly HashSet<string> UniqueTalismanSourceBeastSet =
+        new(UniqueTalismanSourceBeasts, StringComparer.OrdinalIgnoreCase);
+
     private static readonly Dictionary<string, TalismanInfo> TalismansByBeast =
         AllTalismans.ToDictionary(x => x.BeastName, x => x, StringComparer.OrdinalIgnoreCase);
 
@@ -105,6 +108,11 @@ internal static class BeastsV2TalismanData
 
         talisman = default;
         return false;
+    }
+
+    public static bool IsUniqueTalismanSourceBeast(string beastName)
+    {
+        return !string.IsNullOrWhiteSpace(beastName) && UniqueTalismanSourceBeastSet.Contains(beastName);
     }
 
     public static bool TryGetByTalismanName(string talismanName, out TalismanInfo talisman)
