@@ -8,6 +8,13 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 07, 30, 1,
+            "Added Tracking: Talisman Prices, mapping all 41 beasts that drop a talisman to their talisman base type, implicit modifier, and current poe.ninja price.",
+            "Talisman price fetching is off by default. Turn on Tracking: Talisman Prices -> Track Talisman Prices to enable it, since the poe.ninja base-type feed is large.",
+            "Prices use uninfluenced bases with the deepest listing count, so a talisman reflects what it actually sells for instead of an influenced or thinly-listed high roll.",
+            "Tracking: Talisman Prices -> Add Talisman Price To Beast Price shows beast prices as \"95c +3c\" on world and large-map labels, in the tracked beasts window, and in the Tracked Beasts list, for the talismans you have enabled.",
+            "Tracking: Talisman Prices now also lists the five unique talismans, which drop from Spirit Beasts or the Beastcrafting recipe requiring The Black Morrigan rather than from the beast matching their base type.",
+            "Tracking: Talisman Prices -> Track Beasts For Selection adds every beast that drops a selected talisman to your Tracked Beasts list, and selected talismans whose beast is not tracked are now flagged so they are not silently doing nothing."),
         new(2026, 04, 24, 2,
             "Analytics: Enable Features now adds a single master toggle to fully turn analytics on or off.",
             "When disabled, the Map Time / Avg Map / Session overlay panel is hidden, the local analytics dashboard stays off, and automatic session autosaves are skipped.",

@@ -76,6 +76,9 @@ public class Settings : ISettings
     [Menu("Tracking: Price Data", "Configure automatic beast price fetching from poe.ninja, set the league name, and choose which beasts are considered valuable.")]
     public BeastPricesSettings BeastPrices { get; set; } = new();
 
+    [Menu("Tracking: Talisman Prices", "Fetch talisman base-type prices from poe.ninja and map each talisman to the beast that drops it, so you can track talisman value alongside beast value.")]
+    public TalismanPricesSettings TalismanPrices { get; set; } = new();
+
     [Menu("Tracking: Markers & Prices", "Configure in-world beast name labels, large-map markers, the tracked beasts list, and price overlays shown on inventory, stash, and Bestiary panels.")]
     public MapRenderSettings MapRender { get; set; } = new();
 
@@ -593,6 +596,60 @@ public class BeastPricesSettings
 
     [Menu("Tracked Beasts", "Pick which beasts are considered valuable. Enabled beasts appear in map markers, are counted in analytics, and are included in the auto-generated Bestiary search regex.")]
     [JsonIgnore] public CustomNode BeastPickerPanel { get; set; } = new();
+}
+
+[Submenu(CollapsedByDefault = true)]
+public class TalismanPricesSettings
+{
+    [Menu("Talisman Snapshot", "A compact summary of talisman tracking state and the most valuable tracked talismans.")]
+    [JsonIgnore]
+    public CustomNode SummaryPanel { get; set; } = new();
+
+    [Menu("Track Talisman Prices", "Fetch talisman prices from poe.ninja whenever beast prices are refreshed. Off by default because the base-type feed is large, so only turn this on if you want talisman pricing.")]
+    public ToggleNode Enable { get; set; } = new(false);
+
+    [Menu("Add Talisman Price To Beast Price", "Show each beast's price with its talisman price added on, as \"95c +3c\". Applies to world and large-map beast labels, the tracked beasts window, and the Tracked Beasts list under Tracking: Price Data. Only affects talismans enabled in the mapping list below.")]
+    [JsonProperty("ShowOnOverlay")]
+    public ToggleNode CombineWithBeastPrice { get; set; } = new(false);
+
+    [Menu("Select All", "Enable every beast/talisman pair in the list at once.")]
+    public ButtonNode SelectAllTalismans { get; set; } = new();
+
+    [Menu("Clear Selection", "Disable every beast/talisman pair in the list at once.")]
+    public ButtonNode DeselectAllTalismans { get; set; } = new();
+
+    [Menu("Select 15c+", "Enable only talismans whose currently fetched poe.ninja price is 15 chaos or more.")]
+    public ButtonNode SelectTalismansWorth15ChaosOrMore { get; set; } = new();
+
+    [Menu("Track Beasts For Selection", "Add every beast that drops one of your selected talismans to the Tracked Beasts list under Tracking: Price Data, so those beasts actually show up on overlays and in the Bestiary regex. Selecting any unique talisman also adds the four Spirit Beasts.")]
+    public ButtonNode TrackBeastsForSelectedTalismans { get; set; } = new();
+
+    [JsonIgnore]
+    internal HashSet<string> EnabledTalismans { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
+
+    [JsonProperty("EnabledTalismans")]
+    public List<string> SavedEnabledTalismans
+    {
+        get => new(EnabledTalismans);
+        set => EnabledTalismans = value != null
+            ? new HashSet<string>(value, System.StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+    }
+
+    [JsonIgnore]
+    internal HashSet<string> EnabledUniqueTalismans { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
+
+    [JsonProperty("EnabledUniqueTalismans")]
+    public List<string> SavedEnabledUniqueTalismans
+    {
+        get => new(EnabledUniqueTalismans);
+        set => EnabledUniqueTalismans = value != null
+            ? new HashSet<string>(value, System.StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Menu("Talisman Mappings", "Each beast paired with the talisman it drops, that talisman's implicit, and its current poe.ninja price. Enable the ones you want to track.")]
+    [JsonIgnore] public CustomNode TalismanPickerPanel { get; set; } = new();
 }
 
 [Submenu(CollapsedByDefault = true)]

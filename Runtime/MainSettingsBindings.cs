@@ -16,6 +16,12 @@ internal sealed record MainSettingsBindingTargets(
     Action SelectPriceDataBeastsWorth15ChaosOrMore,
     Action DrawBeastPricesSummaryPanel,
     Action DrawBeastPickerPanel,
+    Action SelectAllTalismans,
+    Action DeselectAllTalismans,
+    Action SelectTalismansWorth15ChaosOrMore,
+    Action TrackBeastsForSelectedTalismans,
+    Action DrawTalismanPricesSummaryPanel,
+    Action DrawTalismanPickerPanel,
     Action DrawStashAutomationSummaryPanel,
     Action DrawBestiaryAutomationSummaryPanel,
     Action DrawMerchantAutomationSummaryPanel,
@@ -50,6 +56,14 @@ internal static class MainSettingsBindings
         beastPrices.SelectBeastsWorth15ChaosOrMore.OnPressed = targets.SelectPriceDataBeastsWorth15ChaosOrMore;
         beastPrices.SummaryPanel.DrawDelegate = targets.DrawBeastPricesSummaryPanel;
         beastPrices.BeastPickerPanel.DrawDelegate = targets.DrawBeastPickerPanel;
+
+        var talismanPrices = settings.TalismanPrices;
+        talismanPrices.SelectAllTalismans.OnPressed = targets.SelectAllTalismans;
+        talismanPrices.DeselectAllTalismans.OnPressed = targets.DeselectAllTalismans;
+        talismanPrices.SelectTalismansWorth15ChaosOrMore.OnPressed = targets.SelectTalismansWorth15ChaosOrMore;
+        talismanPrices.TrackBeastsForSelectedTalismans.OnPressed = targets.TrackBeastsForSelectedTalismans;
+        talismanPrices.SummaryPanel.DrawDelegate = targets.DrawTalismanPricesSummaryPanel;
+        talismanPrices.TalismanPickerPanel.DrawDelegate = targets.DrawTalismanPickerPanel;
 
         settings.StashAutomation.SetupSummaryPanel.DrawDelegate = targets.DrawStashAutomationSummaryPanel;
         settings.BestiaryAutomation.SetupSummaryPanel.DrawDelegate = targets.DrawBestiaryAutomationSummaryPanel;

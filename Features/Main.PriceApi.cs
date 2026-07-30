@@ -32,6 +32,8 @@ public partial class Main
         ["Fragment"] = PoeNinjaExchangeOverviewEndpoint,
         ["Currency"] = PoeNinjaExchangeOverviewEndpoint,
         ["Invitation"] = PoeNinjaItemOverviewEndpoint,
+        ["BaseType"] = PoeNinjaItemOverviewEndpoint,
+        ["UniqueAccessory"] = PoeNinjaItemOverviewEndpoint,
     };
 
     private Dictionary<string, float> _beastPrices = AllRedBeasts.ToDictionary(x => x.Name, _ => -1f);
@@ -41,6 +43,14 @@ public partial class Main
     private TrackedBeast[] _sortedBeastsByPrice = AllRedBeasts;
     private bool _isFetchingPrices;
     private DateTime _lastPriceFetchAttempt = DateTime.MinValue;
+
+    private Dictionary<string, float> _talismanPricesByBeast = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> _talismanPriceTextsByBeast = new(StringComparer.OrdinalIgnoreCase);
+    private TalismanInfo[] _sortedTalismansByPrice = BeastsV2TalismanData.AllTalismans;
+
+    private Dictionary<string, float> _uniqueTalismanPrices = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> _uniqueTalismanPriceTexts = new(StringComparer.OrdinalIgnoreCase);
+    private UniqueTalismanInfo[] _sortedUniqueTalismansByPrice = BeastsV2TalismanData.UniqueTalismans;
 
     private void DrawBeastPickerPanel()
     {
@@ -54,7 +64,9 @@ public partial class Main
             return;
 
         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.NoSort, 24);
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 60);
+        // No explicit width so the column auto-fits its widest cell. Entries grow beyond a plain
+        // "185c" when the talisman price is appended, and a fixed width clips them.
+        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed);
         ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableHeadersRow();
@@ -216,6 +228,8 @@ public partial class Main
                 x => x.Key,
                 x => x.Value.Count > 0 ? x.Value.Average() : 0f);
 
+            await FetchTalismanPricesAsync(league);
+
             Settings.BeastPrices.LastUpdated = AnalyticsEngineV2.FormatUserLocalTime(DateTime.Now);
             SavePersistedBeastPriceSettings();
             Log($"Beast + item prices updated ({Settings.BeastPrices.LastUpdated}).");
@@ -228,6 +242,163 @@ public partial class Main
         {
             _isFetchingPrices = false;
         }
+    }
+
+    /// <summary>
+    /// Fetches talisman base-type prices and folds them onto their associated beasts.
+    /// </summary>
+    /// <remarks>
+    /// The BaseType feed lists every talisman once per item level and once per influence variant,
+    /// so a naive max would report an influenced or thinly-listed high-roll instead of the price a
+    /// dropped talisman actually fetches. We therefore keep only uninfluenced lines and pick the one
+    /// with the deepest listing count, which discards 1-3 listing outliers at the top item level.
+    /// </remarks>
+    private async Task FetchTalismanPricesAsync(string escapedLeague)
+    {
+        if (Settings.TalismanPrices?.Enable?.Value != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var url = BuildPoeNinjaOverviewUrl(escapedLeague, "BaseType");
+            var json = await HttpClient.GetStringAsync(url);
+            var response = JsonConvert.DeserializeObject<PoeNinjaOverviewResponse>(json);
+            if (response?.Lines == null)
+            {
+                return;
+            }
+
+            var namesById = BuildPoeNinjaItemNameById(response);
+            var bestLineByTalisman = new Dictionary<string, PoeNinjaOverviewLine>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var line in response.Lines)
+            {
+                // Influenced bases are a different market from the talismans beasts drop.
+                if (!string.IsNullOrEmpty(line?.Variant))
+                {
+                    continue;
+                }
+
+                var lineName = GetPoeNinjaLineName(line, namesById);
+                if (!BeastsV2TalismanData.TryGetByTalismanName(lineName, out var talisman) ||
+                    GetPoeNinjaLineChaosValue(line) <= 0)
+                {
+                    continue;
+                }
+
+                if (!bestLineByTalisman.TryGetValue(talisman.TalismanName, out var existing) ||
+                    IsDeeperPoeNinjaListing(line, existing))
+                {
+                    bestLineByTalisman[talisman.TalismanName] = line;
+                }
+            }
+
+            var pricesByBeast = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            foreach (var talisman in BeastsV2TalismanData.AllTalismans)
+            {
+                pricesByBeast[talisman.BeastName] =
+                    bestLineByTalisman.TryGetValue(talisman.TalismanName, out var line)
+                        ? GetPoeNinjaLineChaosValue(line)
+                        : -1f;
+            }
+
+            _talismanPricesByBeast = pricesByBeast;
+            RebuildTalismanPriceCaches(pricesByBeast);
+            LogDebug($"Talisman prices updated for {bestLineByTalisman.Count} of {BeastsV2TalismanData.AllTalismans.Length} talismans.");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"Skipping poe.ninja talisman prices. {ex.GetType().Name}: {ex.Message}");
+        }
+
+        await FetchUniqueTalismanPricesAsync(escapedLeague);
+    }
+
+    /// <summary>
+    /// Fetches prices for the unique talismans, which live in the UniqueAccessory feed rather than
+    /// the base-type feed.
+    /// </summary>
+    private async Task FetchUniqueTalismanPricesAsync(string escapedLeague)
+    {
+        try
+        {
+            var url = BuildPoeNinjaOverviewUrl(escapedLeague, "UniqueAccessory");
+            var json = await HttpClient.GetStringAsync(url);
+            var response = JsonConvert.DeserializeObject<PoeNinjaOverviewResponse>(json);
+            if (response?.Lines == null)
+            {
+                return;
+            }
+
+            var namesById = BuildPoeNinjaItemNameById(response);
+            var prices = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var line in response.Lines)
+            {
+                var lineName = GetPoeNinjaLineName(line, namesById);
+                var chaosValue = GetPoeNinjaLineChaosValue(line);
+                if (string.IsNullOrWhiteSpace(lineName) || chaosValue <= 0)
+                {
+                    continue;
+                }
+
+                if (BeastsV2TalismanData.UniqueTalismans.Any(u =>
+                        string.Equals(u.Name, lineName, StringComparison.OrdinalIgnoreCase)) &&
+                    (!prices.TryGetValue(lineName, out var existing) || chaosValue > existing))
+                {
+                    prices[lineName] = chaosValue;
+                }
+            }
+
+            _uniqueTalismanPrices = prices;
+            _uniqueTalismanPriceTexts = BeastsV2TalismanData.UniqueTalismans
+                .Where(u => prices.ContainsKey(u.Name))
+                .ToDictionary(u => u.Name, u => $"{prices[u.Name]:0}c", StringComparer.OrdinalIgnoreCase);
+            _sortedUniqueTalismansByPrice = BeastsV2TalismanData.UniqueTalismans
+                .OrderByDescending(u => prices.TryGetValue(u.Name, out var price) ? price : -1f)
+                .ToArray();
+
+            LogDebug($"Unique talisman prices updated for {prices.Count} of {BeastsV2TalismanData.UniqueTalismans.Length} uniques.");
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"Skipping poe.ninja unique talisman prices. {ex.GetType().Name}: {ex.Message}");
+        }
+    }
+
+    private bool TryGetUniqueTalismanPriceText(string uniqueName, out string priceText)
+    {
+        return _uniqueTalismanPriceTexts.TryGetValue(uniqueName ?? string.Empty, out priceText);
+    }
+
+    private static bool IsDeeperPoeNinjaListing(PoeNinjaOverviewLine candidate, PoeNinjaOverviewLine existing)
+    {
+        var candidateListings = candidate?.ListingCount ?? 0;
+        var existingListings = existing?.ListingCount ?? 0;
+        if (candidateListings != existingListings)
+        {
+            return candidateListings > existingListings;
+        }
+
+        return (candidate?.LevelRequired ?? 0) > (existing?.LevelRequired ?? 0);
+    }
+
+    private void RebuildTalismanPriceCaches(Dictionary<string, float> pricesByBeast)
+    {
+        _talismanPriceTextsByBeast = BeastsV2TalismanData.AllTalismans
+            .Where(t => pricesByBeast.TryGetValue(t.BeastName, out var price) && price >= 0)
+            .ToDictionary(t => t.BeastName, t => $"{pricesByBeast[t.BeastName]:0}c", StringComparer.OrdinalIgnoreCase);
+
+        _sortedTalismansByPrice = BeastsV2TalismanData.AllTalismans
+            .OrderByDescending(t => pricesByBeast.TryGetValue(t.BeastName, out var price) ? price : -1f)
+            .ToArray();
+    }
+
+    private bool TryGetTalismanPriceText(string beastName, out string priceText)
+    {
+        return _talismanPriceTextsByBeast.TryGetValue(beastName ?? string.Empty, out priceText);
     }
 
     private static string BuildPoeNinjaOverviewUrl(string escapedLeague, string type)
@@ -386,6 +557,9 @@ public partial class Main
         [JsonProperty("chaosValue")] public float? ChaosValue { get; set; }
         [JsonProperty("chaosEquivalent")] public float? ChaosEquivalent { get; set; }
         [JsonProperty("mapTier")] public int? MapTier { get; set; }
+        [JsonProperty("variant")] public string Variant { get; set; }
+        [JsonProperty("levelRequired")] public int? LevelRequired { get; set; }
+        [JsonProperty("listingCount")] public int? ListingCount { get; set; }
     }
 }
 

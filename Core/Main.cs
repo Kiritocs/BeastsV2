@@ -202,6 +202,24 @@ public partial class Main : BaseSettingsPlugin<Settings>
             }
 
             var root = JObject.Parse(File.ReadAllText(settingsPath));
+
+            if (root["TalismanPrices"] is JObject talismanPricesSection)
+            {
+                if (talismanPricesSection["EnabledTalismans"] is JArray enabledTalismansArray)
+                {
+                    Settings.TalismanPrices.EnabledTalismans = new HashSet<string>(
+                        enabledTalismansArray.Values<string>().Where(x => !string.IsNullOrWhiteSpace(x)),
+                        StringComparer.OrdinalIgnoreCase);
+                }
+
+                if (talismanPricesSection["EnabledUniqueTalismans"] is JArray enabledUniqueTalismansArray)
+                {
+                    Settings.TalismanPrices.EnabledUniqueTalismans = new HashSet<string>(
+                        enabledUniqueTalismansArray.Values<string>().Where(x => !string.IsNullOrWhiteSpace(x)),
+                        StringComparer.OrdinalIgnoreCase);
+                }
+            }
+
             if (root["BeastPrices"] is not JObject beastPricesSection)
             {
                 return;
@@ -234,6 +252,12 @@ public partial class Main : BaseSettingsPlugin<Settings>
             beastPricesSection["LastUpdated"] = Settings.BeastPrices.LastUpdated;
             beastPricesSection["EnabledBeasts"] = new JArray(Settings.BeastPrices.EnabledBeasts.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
             root["BeastPrices"] = beastPricesSection;
+
+            var talismanPricesSection = root["TalismanPrices"] as JObject ?? new JObject();
+            talismanPricesSection["EnabledTalismans"] = new JArray(Settings.TalismanPrices.EnabledTalismans.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+            talismanPricesSection["EnabledUniqueTalismans"] = new JArray(Settings.TalismanPrices.EnabledUniqueTalismans.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+            root["TalismanPrices"] = talismanPricesSection;
+
             File.WriteAllText(settingsPath, root.ToString());
         }
         catch (Exception ex)

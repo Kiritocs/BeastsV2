@@ -95,6 +95,9 @@ public partial class Main
         {
             DrawSummaryRow("Price refresh cadence", FormatRefreshInterval(prices.AutoRefreshMinutes.Value));
             DrawSummaryRow("Overlay tracking mode", Settings.MapRender.ShowEnabledOnly.Value ? "Only tracked beasts" : "All rare beasts", GetStateColor(Settings.MapRender.ShowEnabledOnly.Value));
+            DrawSummaryRow("Talisman tracking", Settings.TalismanPrices.Enable.Value
+                ? $"On ({Settings.TalismanPrices.EnabledTalismans.Count.ToString(CultureInfo.InvariantCulture)} tracked)"
+                : "Off", GetStateColor(Settings.TalismanPrices.Enable.Value));
             ImGui.EndTable();
         }
 

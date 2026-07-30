@@ -420,7 +420,7 @@ public partial class Main
 
     private BeastLookupService BeastLookup => _beastLookupService ??= new BeastLookupService(
         new BeastLookupCallbacks(
-            beastName => _beastPriceTexts.TryGetValue(beastName, out var priceText) ? priceText : null,
+            GetBeastDisplayPriceText,
             () => CaptureMonsterCapturedBuffName,
             () => CaptureMonsterTrappedBuffName));
 
@@ -841,6 +841,12 @@ public partial class Main
             SelectPriceDataBeastsWorth15ChaosOrMore,
             DrawBeastPricesSummaryPanel,
             DrawBeastPickerPanel,
+            SelectAllTalismans,
+            DeselectAllTalismans,
+            SelectTalismansWorth15ChaosOrMore,
+            TrackBeastsForSelectedTalismans,
+            DrawTalismanPricesSummaryPanel,
+            DrawTalismanPickerPanel,
             DrawStashAutomationSummaryPanel,
             DrawBestiaryAutomationSummaryPanel,
             DrawMerchantAutomationSummaryPanel,
