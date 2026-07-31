@@ -7,37 +7,37 @@ internal static class BeastsV2BeastData
     public static readonly TrackedBeast[] AllRedBeasts =
     [
         // Craicic (The Deep)
-        new("Craicic Croaker",      ["Metadata/Monsters/LeagueBestiary/GemFrogBestiary"],                    "cic c"),
+        new("Craicic Croaker",      ["Metadata/Monsters/LeagueBestiary/GemFrogBestiary"],                    "c cr"),
         new("Craicic Spider Crab",   ["Metadata/Monsters/LeagueBestiary/CrabSpiderBestiary"],                 "c sp"),
         new("Craicic Maw",           ["Metadata/Monsters/LeagueBestiary/FrogBestiary"],                       "cic m"),
         new("Craicic Sand Spitter",  ["Metadata/Monsters/LeagueBestiary/SandSpitterBestiary"],                "c san"),
         new("Craicic Savage Crab",   ["Metadata/Monsters/LeagueBestiary/CrabParasiteLargeBestiary_"],         "c sav"),
         new("Craicic Shield Crab",   ["Metadata/Monsters/LeagueBestiary/ShieldCrabBestiary"],                 "c sh"),
-        new("Craicic Squid",         ["Metadata/Monsters/LeagueBestiary/SeaWitchSpawnBestiary"],              "sq"),
+        new("Craicic Squid",         ["Metadata/Monsters/LeagueBestiary/SeaWitchSpawnBestiary"],              "c sq"),
         new("Craicic Vassal",        ["Metadata/Monsters/LeagueBestiary/ParasiticSquidBestiary"],             "c v"),
         new("Craicic Watcher",       ["Metadata/Monsters/LeagueBestiary/SquidBestiary"],                      "c wa"),
 
         // Farric (The Wilds)
         new("Farric Tiger Alpha",         ["Metadata/Monsters/LeagueBestiary/TigerBestiary"],                 "c ti"),
-        new("Farric Wolf Alpha",          ["Metadata/Monsters/LeagueBestiary/WolfBestiary"],                  "f a"),
+        new("Farric Wolf Alpha",          ["Metadata/Monsters/LeagueBestiary/WolfBestiary"],                  "c wo"),
         new("Farric Lynx Alpha",          ["Metadata/Monsters/LeagueBestiary/LynxBestiary"],                  "c l"),
         new("Farric Flame Hellion Alpha", ["Metadata/Monsters/LeagueBestiary/HellionBestiary"],               "c fl"),
         new("Farric Frost Hellion Alpha", ["Metadata/Monsters/LeagueBestiary/HellionBestiary2"],              "c fr"),
         new("Farric Magma Hound",         ["Metadata/Monsters/LeagueBestiary/HoundBestiary"],                 "ma h"),
         new("Farric Pit Hound",           ["Metadata/Monsters/LeagueBestiary/PitbullBestiary"],               "c pi"),
-        new("Farric Chieftain",           ["Metadata/Monsters/LeagueBestiary/BestiaryMonkeyChiefBlood"],      "rric c"),
+        new("Farric Chieftain",           ["Metadata/Monsters/LeagueBestiary/BestiaryMonkeyChiefBlood"],      "c ch"),
         new("Farric Ape",                 ["Metadata/Monsters/LeagueBestiary/MonkeyBloodBestiary"],           "c a"),
         new("Farric Goliath",             ["Metadata/Monsters/LeagueBestiary/BestiarySpiker"],                "c gol"),
         new("Farric Goatman",             ["Metadata/Monsters/LeagueBestiary/GoatmanLeapSlamBestiary"],       "c goa"),
         new("Farric Gargantuan",          ["Metadata/Monsters/LeagueBestiary/BeastCaveBestiary"],             "c ga"),
-        new("Farric Taurus",              ["Metadata/Monsters/LeagueBestiary/BestiaryBull"],                  "ic ta"),
+        new("Farric Taurus",              ["Metadata/Monsters/LeagueBestiary/BestiaryBull"],                  "c ta"),
         new("Farric Ursa",                ["Metadata/Monsters/LeagueBestiary/DropBearBestiary"],              "c u"),
         new("Vicious Hound",              ["Metadata/Monsters/LeagueBestiary/PurgeHoundBestiary"],            "s ho"),
 
         // Fenumal (The Caverns)
         new("Fenumal Hybrid Arachnid",  ["Metadata/Monsters/LeagueBestiary/SpiderPlatedBestiary"],           "l hy"),
-        new("Fenumal Plagued Arachnid", ["Metadata/Monsters/LeagueBestiary/SpiderPlagueBestiary"],           "l pla"),
-        new("Fenumal Devourer",         ["Metadata/Monsters/LeagueBestiary/RootSpiderBestiary_"],            "mal d"),
+        new("Fenumal Plagued Arachnid", ["Metadata/Monsters/LeagueBestiary/SpiderPlagueBestiary"],           "l pl"),
+        new("Fenumal Devourer",         ["Metadata/Monsters/LeagueBestiary/RootSpiderBestiary_"],            "l de"),
         new("Fenumal Queen",            ["Metadata/Monsters/LeagueBestiary/InsectSpawnerBestiary"],          "l q"),
         new("Fenumal Widow",            ["Metadata/Monsters/LeagueBestiary/Spider5Bestiary"],                "l w"),
         new("Fenumal Scorpion",         ["Metadata/Monsters/LeagueBestiary/BlackScorpionBestiary"],          "l sco"),
@@ -45,15 +45,15 @@ internal static class BeastsV2BeastData
 
         // Saqawine (The Sands)
         new("Saqawine Rhex",        ["Metadata/Monsters/LeagueBestiary/Avians/MarakethBirdBestiary"],       "e rhe"),
-        new("Saqawine Vulture",     ["Metadata/Monsters/LeagueBestiary/VultureBestiary"],                    "e vu"),
+        new("Saqawine Vulture",     ["Metadata/Monsters/LeagueBestiary/VultureBestiary"],                    "ne v"),
         new("Saqawine Cobra",       ["Metadata/Monsters/LeagueBestiary/SnakeBestiary1"],                     "ne co"),
         new("Saqawine Blood Viper", ["Metadata/Monsters/LeagueBestiary/SnakeBestiary2"],                     "ne b"),
         new("Saqawine Retch",       ["Metadata/Monsters/LeagueBestiary/KiwethBestiary"],                     "ne re"),
-        new("Saqawine Rhoa",        ["Metadata/Monsters/LeagueBestiary/RhoaBestiary"],                       "ine rho"),
+        new("Saqawine Rhoa",        ["Metadata/Monsters/LeagueBestiary/RhoaBestiary"],                       "e rho"),
         new("Saqawine Chimeral",    ["Metadata/Monsters/LeagueBestiary/IguanaBestiary"],                     "ne ch"),
 
         // Spirit Bosses
-        new("Saqawal, First of the Sky",    ["Metadata/Monsters/LeagueBestiary/MarakethBirdSpiritBoss"],      "al, f"),
+        new("Saqawal, First of the Sky",    ["Metadata/Monsters/LeagueBestiary/MarakethBirdSpiritBoss"],      "e sk"),
         new("Craiceann, First of the Deep", ["Metadata/Monsters/LeagueBestiary/NessaCrabBestiarySpiritBoss"], "n, f"),
         new("Farrul, First of the Plains",  ["Metadata/Monsters/LeagueBestiary/TigerBestiarySpiritBoss"],     "ul, f"),
         new("Fenumus, First of the Night",  ["Metadata/Monsters/LeagueBestiary/SpiderPlatedBestiarySpiritBoss"], "s, f"),
@@ -62,8 +62,8 @@ internal static class BeastsV2BeastData
         new("Wild Bristle Matron",   ["Metadata/Monsters/LeagueHarvest/Red/HarvestBeastT3MemoryLine_", "Metadata/Monsters/LeagueHarvest/Red/HarvestBeastT3"], "le m"),
         new("Wild Hellion Alpha",    ["Metadata/Monsters/LeagueHarvest/Red/HarvestHellionT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Red/HarvestHellionT3"], "ld h"),
         new("Wild Brambleback",      ["Metadata/Monsters/LeagueHarvest/Red/HarvestBrambleHulkT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Red/HarvestBrambleHulkT3"], "d bra"),
-        new("Primal Cystcaller",     ["Metadata/Monsters/LeagueHarvest/Blue/HarvestGoatmanT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Blue/HarvestGoatmanT3"], "cy"),
-        new("Primal Rhex Matriarch", ["Metadata/Monsters/LeagueHarvest/Blue/HarvestRhexT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Blue/HarvestRhexT3"], "x ma"),
+        new("Primal Cystcaller",     ["Metadata/Monsters/LeagueHarvest/Blue/HarvestGoatmanT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Blue/HarvestGoatmanT3"], "l cy"),
+        new("Primal Rhex Matriarch", ["Metadata/Monsters/LeagueHarvest/Blue/HarvestRhexT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Blue/HarvestRhexT3"], "ex m"),
         new("Primal Crushclaw",      ["Metadata/Monsters/LeagueHarvest/Blue/HarvestNessaCrabT3MemoryLine_", "Metadata/Monsters/LeagueHarvest/Blue/HarvestNessaCrabT3"], "l cru"),
         new("Vivid Vulture",         ["Metadata/Monsters/LeagueHarvest/Green/HarvestVultureParasiteT3MemoryLine", "Metadata/Monsters/LeagueHarvest/Green/HarvestVultureParasiteT3"], "id v"),
         new("Vivid Watcher",         ["Metadata/Monsters/LeagueHarvest/Green/HarvestSquidT3MemoryLine_", "Metadata/Monsters/LeagueHarvest/Green/HarvestSquidT3_"], "id w"),
@@ -81,7 +81,6 @@ internal static class BeastsV2BeastData
         "Wild Brambleback",
         "Craicic Croaker",
         "Fenumal Plagued Arachnid",
-        "Vicious Hound",
         "Black Mórrigan",
     ];
 

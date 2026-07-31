@@ -230,7 +230,7 @@ public partial class Main
     private async Task<string> WaitForBestiarySearchRegexTextAsync(string expectedText, int timeoutMs)
     {
         return await PollAutomationValueAsync(
-            () => TryGetBestiaryObservedSearchRegex(out var observedRegex) ? observedRegex : null,
+            () => TryGetBestiaryObservedSearchRegex(expectedText, out var observedRegex) ? observedRegex : null,
             text => string.Equals(text, expectedText, StringComparison.Ordinal),
             timeoutMs,
             AutomationTiming.FastPollDelayMs);
@@ -505,8 +505,7 @@ public partial class Main
 
     private string GetBestiarySearchRegexText()
     {
-        return GetBestiarySearchRegexReadCandidates()
-            .Where(ContainsReadableBestiarySearchText)
+        return GetBestiarySearchRegexObservedCandidates()
             .OrderByDescending(text => text.Length)
             .FirstOrDefault();
     }
@@ -587,6 +586,23 @@ public partial class Main
         yield return TryGetAutomationElementText(textElement, 2);
     }
 
+    // Reading the filter input also picks up the surrounding chrome ("Filter Beasts" placeholder,
+    // the "+" button). Those must never be mistaken for the regex the field actually holds.
+    private static readonly string[] BestiarySearchChromeTexts = ["Filter Beasts", "Filter", "Search", "+"];
+
+    private static bool IsBestiarySearchChromeText(string text)
+    {
+        return BestiarySearchChromeTexts.Any(chrome => string.Equals(text, chrome, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private IEnumerable<string> GetBestiarySearchRegexObservedCandidates()
+    {
+        return GetBestiarySearchRegexReadCandidates()
+            .Where(ContainsReadableBestiarySearchText)
+            .Where(text => !IsBestiarySearchChromeText(text))
+            .Distinct(StringComparer.Ordinal);
+    }
+
     private static bool ContainsReadableBestiarySearchText(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -612,11 +628,16 @@ public partial class Main
 
     private bool TryGetBestiaryObservedSearchRegex(out string observedRegex)
     {
-        observedRegex = GetBestiarySearchRegexReadCandidates()
-            .Where(ContainsReadableBestiarySearchText)
-            .Distinct(StringComparer.Ordinal)
-            .OrderByDescending(text => text.Length)
-            .FirstOrDefault();
+        return TryGetBestiaryObservedSearchRegex(null, out observedRegex);
+    }
+
+    private bool TryGetBestiaryObservedSearchRegex(string expectedRegex, out string observedRegex)
+    {
+        var candidates = GetBestiarySearchRegexObservedCandidates().ToList();
+
+        // An exact hit on what we pasted beats the longest-text heuristic, which can only guess.
+        observedRegex = candidates.FirstOrDefault(text => string.Equals(text, expectedRegex, StringComparison.Ordinal))
+                        ?? candidates.OrderByDescending(text => text.Length).FirstOrDefault();
         return !string.IsNullOrWhiteSpace(observedRegex);
     }
 
@@ -652,7 +673,7 @@ public partial class Main
 
         var timing = AutomationTiming;
 
-        if (TryGetBestiaryObservedSearchRegex(out var existingRegex) &&
+        if (TryGetBestiaryObservedSearchRegex(regex, out var existingRegex) &&
             string.Equals(existingRegex, regex, StringComparison.Ordinal))
         {
             LogDebug($"Bestiary search regex already matches configured value. leaving existing filter unchanged. value='{regex}'");
