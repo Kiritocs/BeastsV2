@@ -41,10 +41,21 @@ public partial class Main
     private TrackedBeast[] _sortedBeastsByPrice = AllRedBeasts;
     private bool _isFetchingPrices;
     private DateTime _lastPriceFetchAttempt = DateTime.MinValue;
+    private string _beastPickerSearch = string.Empty;
 
     private void DrawBeastPickerPanel()
     {
         ImGui.Text($"Prices as of: {Settings.BeastPrices.LastUpdated}");
+
+        var search = _beastPickerSearch;
+        ImGui.SetNextItemWidth(Math.Max(80f, ImGui.GetContentRegionAvail().X - 60f));
+        if (ImGui.InputTextWithHint("##BeastPickerSearch", "Search by name or family...", ref search, 64u))
+            _beastPickerSearch = search;
+
+        ImGui.SameLine();
+        if (ImGui.Button("Clear##BeastPickerSearch"))
+            _beastPickerSearch = string.Empty;
+
         ImGui.Separator();
 
         if (!ImGui.BeginTable("##BeastPickerTable", 3,
@@ -60,9 +71,14 @@ public partial class Main
         ImGui.TableHeadersRow();
 
         var enabledBeasts = Settings.BeastPrices.EnabledBeasts;
+        var filter = _beastPickerSearch.Trim();
+        var matchCount = 0;
 
         foreach (var beast in _sortedBeastsByPrice)
         {
+            if (!MatchesBeastPickerSearch(beast.Name, filter)) continue;
+            matchCount++;
+
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
 
@@ -85,7 +101,23 @@ public partial class Main
                 ImGui.TextDisabled(beast.Name);
         }
 
+        if (matchCount == 0)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.TableNextColumn();
+            ImGui.TableNextColumn();
+            ImGui.TextDisabled($"No beasts match \"{filter}\".");
+        }
+
         ImGui.EndTable();
+    }
+
+    private static bool MatchesBeastPickerSearch(string beastName, string filter)
+    {
+        return filter.Length == 0 ||
+               beastName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+               BeastsV2BeastData.GetBeastFamily(beastName).Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 
     private void SelectAllPriceDataBeasts()
