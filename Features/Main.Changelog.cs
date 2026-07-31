@@ -121,10 +121,16 @@ public partial class Main
 
             foreach (var change in entry.Changes ?? [])
             {
-                if (!string.IsNullOrWhiteSpace(change))
+                if (string.IsNullOrWhiteSpace(change))
                 {
-                    ImGui.BulletText(change);
+                    continue;
                 }
+
+                ImGui.Bullet();
+                ImGui.SameLine();
+                ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X);
+                ImGui.TextUnformatted(change);
+                ImGui.PopTextWrapPos();
             }
         }
     }
