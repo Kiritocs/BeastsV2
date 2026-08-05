@@ -166,6 +166,80 @@ public partial class Main
         SavePersistedBeastPriceSettings();
     }
 
+    // The fetch currently in flight, so callers that need to wait join it rather than
+    // starting a second request against poe.ninja.
+    private Task _inFlightPriceFetch;
+    private readonly object _priceFetchSync = new();
+
+    // How long a pre-listing refresh may run before the run gives up and uses what it has.
+    private const int PriceRefreshTimeoutMs = 8000;
+
+    // Every fetch goes through here so there is exactly one task to await.
+    //
+    // FetchBeastPricesAsync early-returns while a fetch is running, so calling it directly
+    // during a background refresh hands back an already-completed task — which would let a
+    // caller believe it had waited for prices it never waited for.
+    internal Task StartOrJoinPriceFetch()
+    {
+        lock (_priceFetchSync)
+        {
+            if (_inFlightPriceFetch is { IsCompleted: false }) return _inFlightPriceFetch;
+            return _inFlightPriceFetch = FetchBeastPricesAsync();
+        }
+    }
+
+    // Refreshes prices and waits for them, unless they are already recent enough.
+    //
+    // Used before listing at Faustus, where a stale price is money rather than a cosmetic
+    // label. Never throws: poe.ninja being slow or down must not abort a sell run.
+    internal async Task<bool> EnsureBeastPricesFreshAsync(TimeSpan maxAge, int timeoutMs)
+    {
+        var age = DateTime.UtcNow - _lastPriceFetchAttempt;
+        if (age < maxAge)
+        {
+            LogDebug($"Prices are {age.TotalSeconds:0}s old, within the {maxAge.TotalSeconds:0}s window. No refresh needed.");
+            return true;
+        }
+
+        var fetch = StartOrJoinPriceFetch();
+
+        try
+        {
+            var completed = await Task.WhenAny(fetch, Task.Delay(timeoutMs));
+            if (completed != fetch)
+            {
+                LogDebug($"Price refresh did not finish within {timeoutMs}ms. Continuing with prices from {Settings.BeastPrices.LastUpdated}.");
+                return false;
+            }
+
+            // Surfaces a fetch that faulted rather than timed out.
+            await fetch;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogDebug($"Price refresh failed ({ex.GetType().Name}: {ex.Message}). Continuing with prices from {Settings.BeastPrices.LastUpdated}.");
+            return false;
+        }
+    }
+
+    // Entry point used by the Faustus listing workflow, honouring the settings toggle.
+    private async Task RefreshBeastPricesBeforeListingAsync()
+    {
+        var merchant = Settings?.MerchantAutomation;
+        if (merchant?.RefreshPricesBeforeListing?.Value != true) return;
+
+        var maxAge = TimeSpan.FromSeconds(Math.Max(1, merchant.MaxPriceAgeBeforeListingSeconds.Value));
+
+        UpdateAutomationStatus("Refreshing poe.ninja prices...");
+        var fresh = await EnsureBeastPricesFreshAsync(maxAge, PriceRefreshTimeoutMs);
+
+        // Not fatal: listing on slightly old prices beats refusing to sell because a website
+        // is down. EnsureBeastPricesFreshAsync has already logged why.
+        if (!fresh)
+            UpdateAutomationStatus("Could not refresh prices - listing with the prices already loaded.");
+    }
+
     private async Task FetchBeastPricesAsync()
     {
         if (_isFetchingPrices) return;

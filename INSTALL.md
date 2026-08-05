@@ -1,12 +1,5 @@
 # Install
 
-## Requirements
-
-- Windows.
-- Path of Exile 1.
-- ExileApi.
-- .NET 10 SDK only if you want to build BeastsV2 manually.
-
 ## Install With PluginUpdater
 
 1. Open ExileApi.

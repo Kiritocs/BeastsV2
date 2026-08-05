@@ -933,6 +933,12 @@ public class MerchantAutomationSettings
     [Menu("Faustus Price Multiplier", "Multiply poe.ninja beast prices before listing in Faustus. 1.0 keeps the default price, 0.5 undercuts heavily, and 1.5 prices more aggressively.")]
     public RangeNode<float> FaustusPriceMultiplier { get; set; } = new(1f, 0.5f, 1.5f);
 
+    [Menu("Refresh Prices Before Listing", "Fetch poe.ninja prices and wait for them before listing, so beasts are priced on current data instead of whatever the last background refresh left behind. Skipped when prices are already newer than the max age below. If the fetch fails or times out, listing continues with the prices already loaded.")]
+    public ToggleNode RefreshPricesBeforeListing { get; set; } = new(true);
+
+    [Menu("Max Price Age Before Listing (s)", "How old prices may be before a listing run refetches them. Low values cost a fetch on every run; high values risk listing on a stale market.")]
+    public RangeNode<int> MaxPriceAgeBeforeListingSeconds { get; set; } = new(120, 10, 900);
+
     [Menu("Shop Tab", "Select the Faustus shop tab where itemized beasts will be listed for sale. Open Faustus shop in-game to populate the dropdown.")]
     [JsonIgnore] public CustomNode FaustusShopTabSelector { get; set; } = new();
 

@@ -269,6 +269,7 @@ public partial class Main
     private MerchantAutomationWorkflow MerchantWorkflow => _merchantAutomationWorkflow ??= new MerchantAutomationWorkflow(
         new MerchantAutomationWorkflowCallbacks(
             ReleaseAutomationTriggerKeys,
+            RefreshBeastPricesBeforeListingAsync,
             EnsureTravelToHideoutAsync,
             EnsureFaustusMerchantPanelOpenAsync,
             EnsureOfflineMerchantShopInventorySelectedAsync,
