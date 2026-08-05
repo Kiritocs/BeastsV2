@@ -289,7 +289,8 @@ public partial class Main : BaseSettingsPlugin<Settings>
 
     private void QueuePriceFetch()
     {
-        _ = Task.Run(FetchBeastPricesAsync);
+        // Through the join point so a pre-listing refresh can await the same fetch.
+        _ = Task.Run(StartOrJoinPriceFetch);
     }
 
     public override void AreaChange(AreaInstance area)

@@ -7,6 +7,7 @@ namespace BeastsV2.Runtime.Automation;
 
 internal sealed record MerchantAutomationWorkflowCallbacks(
     Action ReleaseAutomationTriggerKeys,
+    Func<Task> RefreshBeastPricesAsync,
     Func<Task> EnsureTravelToHideoutAsync,
     Func<Task<bool>> EnsureMerchantPanelOpenAsync,
     Func<Task<bool>> EnsureShopInventorySelectedAsync,
@@ -37,6 +38,15 @@ internal sealed class MerchantAutomationWorkflow
     {
         var listingStartupStopwatch = Stopwatch.StartNew();
         _callbacks.ReleaseAutomationTriggerKeys();
+
+        // Before anything is priced. Every listing price below derives from these numbers,
+        // so a stale set here is real money rather than a stale label.
+        await MeasureStepAsync("Faustus listing prep: refresh prices", async () =>
+        {
+            await _callbacks.RefreshBeastPricesAsync();
+            return true;
+        });
+
         await MeasureStepAsync("Faustus listing prep: travel to hideout", async () =>
         {
             await _callbacks.EnsureTravelToHideoutAsync();
