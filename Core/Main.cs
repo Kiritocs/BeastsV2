@@ -1219,7 +1219,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         return entity?.Buffs?.Find(buff => string.Equals(buff.Name, KillOnExpiryBuffName, StringComparison.Ordinal)) != null;
     }
-    y
+
     private static bool IsRareBeast(Entity entity)
     {
         return entity.Rarity == MonsterRarity.Rare &&
