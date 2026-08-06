@@ -1219,13 +1219,17 @@ public partial class Main : BaseSettingsPlugin<Settings>
     {
         return entity?.Buffs?.Find(buff => string.Equals(buff.Name, KillOnExpiryBuffName, StringComparison.Ordinal)) != null;
     }
-
+    y
     private static bool IsRareBeast(Entity entity)
     {
         return entity.Rarity == MonsterRarity.Rare &&
-               !HasKillOnExpiryBuff(entity) &&
-               IsCapturableMonsterStat is { } capturableStat &&
-               entity.Stats?.ContainsKey(capturableStat) == true;
+               !HasKillOnExpiryBuff(entity);
+               // IsCapturableMonsterStat is not currently registered by ExileCore after the recent patch.
+               // Retaining this check would break beast tracking, so it is temporarily disabled.
+               // IsCapturableMonsterStat is preserved for future restoration.
+               // !HasKillOnExpiryBuff(entity) &&
+               // IsCapturableMonsterStat is { } capturableStat &&
+               // entity.Stats?.ContainsKey(capturableStat) == true;
     }
 
     private static GameStat? TryGetCapturableMonsterStat()
