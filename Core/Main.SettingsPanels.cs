@@ -88,7 +88,9 @@ public partial class Main
             "Tracked beasts drive overlays, analytics, and the generated Bestiary search regex.",
             ("Current league", FormatText(prices.League?.Value, "Not set"), SummaryAccentColor),
             ("Tracked beasts", prices.EnabledBeasts.Count.ToString(CultureInfo.InvariantCulture), SummaryAccentColor),
-            ("Last price update", FormatText(prices.LastUpdated, "never"), SummaryAccentColor));
+            ("Last price update", prices.HasFetchedPricesThisSession
+                ? FormatText(prices.LastUpdated, "never")
+                : "Not loaded yet", prices.HasFetchedPricesThisSession ? SummaryAccentColor : SummaryWarnColor));
 
         DrawSectionLabel("Supporting details", "Refresh cadence and overlay dependencies that are not already shown in the banner.");
         if (ImGui.BeginTable("##BeastsV2PriceSummary", 2, SummaryTableFlags))

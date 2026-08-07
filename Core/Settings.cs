@@ -573,6 +573,9 @@ public class BeastPricesSettings
     internal string LastUpdated { get; set; } = "never";
 
     [JsonIgnore]
+    internal bool HasFetchedPricesThisSession { get; set; }
+
+    [JsonIgnore]
     internal HashSet<string> EnabledBeasts { get; set; } = new(System.StringComparer.OrdinalIgnoreCase);
 
     [JsonProperty("LastUpdated")]

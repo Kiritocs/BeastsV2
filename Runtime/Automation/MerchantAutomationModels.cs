@@ -24,4 +24,9 @@ internal sealed record MerchantPriceEntryResult(
 	long ConfirmTextMs,
 	long SubmitCloseMs);
 
-internal sealed record MerchantListingCandidate(NormalInventoryItem Item, string BeastName, int ListingPriceChaos);
+internal sealed record MerchantListingCandidate(
+	NormalInventoryItem Item,
+	string BeastName,
+	int ListingPriceChaos,
+	float BasePriceChaos,
+	float Multiplier);

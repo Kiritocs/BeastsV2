@@ -118,6 +118,9 @@ internal sealed class MerchantAutomationWorkflow
 
             _callbacks.UpdateAutomationStatus($"Listing itemized beast {candidate.BeastName} for {candidate.ListingPriceChaos} chaos...", false);
 
+            _callbacks.LogDebug(
+                $"Faustus pricing '{candidate.BeastName}': base={candidate.BasePriceChaos:0.##}c x {candidate.Multiplier:0.##} -> listed={candidate.ListingPriceChaos}c.");
+
             var listingAttemptStopwatch = Stopwatch.StartNew();
             var listingAttempt = await _callbacks.TryListCapturedMonsterAndConfirmAsync(candidate.Item, candidate.ListingPriceChaos);
             if (!loggedFirstListingAttempt)
