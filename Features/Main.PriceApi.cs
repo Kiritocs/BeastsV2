@@ -42,7 +42,15 @@ public partial class Main
     private Dictionary<string, string> _beastPriceTexts = new(StringComparer.OrdinalIgnoreCase);
     private TrackedBeast[] _sortedBeastsByPrice = AllRedBeasts;
     private bool _isFetchingPrices;
+
+    // When a fetch was last *started*. Throttles the auto-refresh timer so a failing endpoint
+    // is retried on the normal cadence instead of being hammered every frame.
     private DateTime _lastPriceFetchAttempt = DateTime.MinValue;
+
+    // When a fetch last *succeeded* and actually replaced _beastPrices. This is what freshness
+    // is measured against: an attempt that threw or came back empty must not make stale prices
+    // look current, or the next listing run silently skips its refresh and sells on old data.
+    private DateTime _lastPriceFetchSuccess = DateTime.MinValue;
     private string _beastPickerSearch = string.Empty;
 
     private Dictionary<string, float> _talismanPricesByBeast = new(StringComparer.OrdinalIgnoreCase);
@@ -53,9 +61,36 @@ public partial class Main
     private Dictionary<string, string> _uniqueTalismanPriceTexts = new(StringComparer.OrdinalIgnoreCase);
     private UniqueTalismanInfo[] _sortedUniqueTalismansByPrice = BeastsV2TalismanData.UniqueTalismans;
 
+    // How old the loaded beast prices are, or null if no fetch has ever succeeded.
+    private double? BeastPriceAgeSeconds => _lastPriceFetchSuccess == DateTime.MinValue
+        ? null
+        : (DateTime.UtcNow - _lastPriceFetchSuccess).TotalSeconds;
+
+    // Header text for any panel showing price age.
+    private string DescribeBeastPriceTimestamp()
+    {
+        var lastUpdated = Settings?.BeastPrices?.LastUpdated;
+        if (Settings?.BeastPrices?.HasFetchedPricesThisSession == true)
+        {
+            return $"Prices as of: {lastUpdated}";
+        }
+
+        return string.IsNullOrWhiteSpace(lastUpdated) || lastUpdated == "never"
+            ? "Prices not loaded yet."
+            : $"Prices not loaded yet (previous session: {lastUpdated}).";
+    }
+
+    // Where the currently loaded prices came from, for logs that need to be self-explanatory.
+    private string DescribeBeastPriceProvenance()
+    {
+        var age = BeastPriceAgeSeconds;
+        var league = Settings?.BeastPrices?.League?.Value?.Trim();
+        return $"league='{(string.IsNullOrWhiteSpace(league) ? "<unset>" : league)}', priceAge={(age.HasValue ? $"{age.Value:0}s" : "never fetched")}";
+    }
+
     private void DrawBeastPickerPanel()
     {
-        ImGui.Text($"Prices as of: {Settings.BeastPrices.LastUpdated}");
+        ImGui.Text(DescribeBeastPriceTimestamp());
 
         var search = _beastPickerSearch;
         ImGui.SetNextItemWidth(Math.Max(80f, ImGui.GetContentRegionAvail().X - 60f));
@@ -174,6 +209,19 @@ public partial class Main
     // How long a pre-listing refresh may run before the run gives up and uses what it has.
     private const int PriceRefreshTimeoutMs = 8000;
 
+    // True while a fetch is running. Derived from the in-flight task under the same lock that
+    // publishes it, so there is no separate flag for the render thread to observe out of order.
+    private bool IsFetchingPrices
+    {
+        get
+        {
+            lock (_priceFetchSync)
+            {
+                return _inFlightPriceFetch is { IsCompleted: false };
+            }
+        }
+    }
+
     // Every fetch goes through here so there is exactly one task to await.
     //
     // FetchBeastPricesAsync early-returns while a fetch is running, so calling it directly
@@ -184,7 +232,12 @@ public partial class Main
         lock (_priceFetchSync)
         {
             if (_inFlightPriceFetch is { IsCompleted: false }) return _inFlightPriceFetch;
-            return _inFlightPriceFetch = FetchBeastPricesAsync();
+
+            _lastPriceFetchAttempt = DateTime.UtcNow;
+
+            // Task.Run keeps the synchronous head of FetchBeastPricesAsync (league sync, which
+            // can touch disk) off the render thread.
+            return _inFlightPriceFetch = Task.Run(FetchBeastPricesAsync);
         }
     }
 
@@ -194,10 +247,12 @@ public partial class Main
     // label. Never throws: poe.ninja being slow or down must not abort a sell run.
     internal async Task<bool> EnsureBeastPricesFreshAsync(TimeSpan maxAge, int timeoutMs)
     {
-        var age = DateTime.UtcNow - _lastPriceFetchAttempt;
-        if (age < maxAge)
+        // Measured from the last *successful* fetch. A failed attempt leaves this untouched, so
+        // a poe.ninja outage forces a real retry here instead of being papered over.
+        var age = DateTime.UtcNow - _lastPriceFetchSuccess;
+        if (_lastPriceFetchSuccess != DateTime.MinValue && age < maxAge)
         {
-            LogDebug($"Prices are {age.TotalSeconds:0}s old, within the {maxAge.TotalSeconds:0}s window. No refresh needed.");
+            LogDebug($"Prices are {age.TotalSeconds:0}s old, within the {maxAge.TotalSeconds:0}s window. No refresh needed. {DescribeBeastPriceProvenance()}");
             return true;
         }
 
@@ -238,13 +293,14 @@ public partial class Main
         // is down. EnsureBeastPricesFreshAsync has already logged why.
         if (!fresh)
             UpdateAutomationStatus("Could not refresh prices - listing with the prices already loaded.");
+
+        LogDebug($"Faustus listing will price against: {DescribeBeastPriceProvenance()}, multiplier={Math.Clamp(merchant.FaustusPriceMultiplier?.Value ?? 1f, 0.5f, 1.5f):0.##}x.");
     }
 
+    // Only ever invoked by StartOrJoinPriceFetch, which has already claimed the in-flight slot
+    // and stamped _lastPriceFetchAttempt under its lock. Nothing here re-checks or re-stamps.
     private async Task FetchBeastPricesAsync()
     {
-        if (_isFetchingPrices) return;
-        _isFetchingPrices = true;
-        _lastPriceFetchAttempt = DateTime.UtcNow;
         try
         {
             SyncBeastPriceLeagueSettingFromServerData();
@@ -255,7 +311,12 @@ public partial class Main
                 
             var beastJson = await HttpClient.GetStringAsync(beastUrl);
             var beastResponse = JsonConvert.DeserializeObject<PoeNinjaOverviewResponse>(beastJson);
-            if (beastResponse?.Lines == null) return;
+
+            if (beastResponse?.Lines == null)
+            {
+                LogError($"poe.ninja returned no beast price lines for league '{league}'. Keeping the previously loaded prices.");
+                return;
+            }
 
             var lookup = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             var beastNamesById = BuildPoeNinjaItemNameById(beastResponse);
@@ -279,8 +340,16 @@ public partial class Main
                 b => lookup.TryGetValue(b.Name, out var price) ? price : -1f,
                 StringComparer.OrdinalIgnoreCase);
 
+            var pricedBeastCount = updated.Values.Count(price => price > 0);
+            if (pricedBeastCount == 0)
+            {
+                LogError($"poe.ninja returned {beastResponse.Lines.Count} beast lines for league '{league}' but none matched a tracked beast. Keeping the previously loaded prices.");
+                return;
+            }
+
             _beastPrices = updated;
             RebuildPriceCaches(updated);
+            _lastPriceFetchSuccess = DateTime.UtcNow;
 
             var marketItemPrices = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             var mapTierBuckets = new Dictionary<int, List<float>>();
@@ -337,8 +406,9 @@ public partial class Main
             await FetchTalismanPricesAsync(league);
 
             Settings.BeastPrices.LastUpdated = AnalyticsEngineV2.FormatUserLocalTime(DateTime.Now);
+            Settings.BeastPrices.HasFetchedPricesThisSession = true;
             SavePersistedBeastPriceSettings();
-            Log($"Beast + item prices updated ({Settings.BeastPrices.LastUpdated}).");
+            Log($"Beast + item prices updated ({Settings.BeastPrices.LastUpdated}). league='{league}', pricedBeasts={pricedBeastCount}/{AllRedBeasts.Length}, marketItems={marketItemPrices.Count}.");
         }
         catch (Exception ex)
         {

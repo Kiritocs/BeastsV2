@@ -314,7 +314,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private void QueuePriceFetch()
     {
         // Through the join point so a pre-listing refresh can await the same fetch.
-        _ = Task.Run(StartOrJoinPriceFetch);
+        _ = StartOrJoinPriceFetch();
     }
 
     public override void AreaChange(AreaInstance area)
@@ -980,7 +980,7 @@ public partial class Main : BaseSettingsPlugin<Settings>
     private void TryScheduleAutoPriceRefresh(DateTime now, BeastPricesSettings beastPrices)
     {
         var autoRefreshMinutes = beastPrices.AutoRefreshMinutes.Value;
-        if (autoRefreshMinutes <= 0 || _isFetchingPrices ||
+        if (autoRefreshMinutes <= 0 || IsFetchingPrices ||
             (now - _lastPriceFetchAttempt).TotalMinutes < autoRefreshMinutes)
         {
             return;

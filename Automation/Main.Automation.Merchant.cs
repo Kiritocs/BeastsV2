@@ -174,7 +174,7 @@ public partial class Main
 
         var multiplier = Math.Clamp(Settings?.MerchantAutomation?.FaustusPriceMultiplier?.Value ?? 1f, 0.5f, 1.5f);
         var listingPriceChaos = Math.Max(1, (int)Math.Ceiling(priceChaos * multiplier));
-        candidate = new MerchantListingCandidate(inventoryItem, beastName, listingPriceChaos);
+        candidate = new MerchantListingCandidate(inventoryItem, beastName, listingPriceChaos, priceChaos, multiplier);
         return true;
     }
 
