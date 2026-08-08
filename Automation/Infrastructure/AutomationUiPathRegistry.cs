@@ -7,7 +7,6 @@ internal static class AutomationUiPathRegistry
     public static int[] BestiarySearchRegexTextPath { get; } = [2, 0, 1, 1, 19, 0, 18, 0, 0, 1, 0];
     public static int[] BestiaryCapturedBeastsButtonContainerPath { get; } = [2, 0, 1, 1, 15, 0, 19];
     public static int[] BestiaryChallengesEntriesRootPath { get; } = [2, 0, 1, 0];
-    public static int[] BestiaryChallengesEntryTextPath { get; } = [0, 1];
     public static int[] BestiaryDeleteButtonPathFromBeastRow { get; } = [3];
     public static int[] BestiaryDeleteConfirmationWindowPath { get; } = [0];
     public static int[] BestiaryDeleteConfirmationOkayButtonPath { get; } = [0, 0, 3, 0];

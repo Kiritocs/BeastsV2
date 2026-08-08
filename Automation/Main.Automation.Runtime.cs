@@ -11,7 +11,6 @@ public partial class Main
     private static IReadOnlyList<int> BestiarySearchRegexTextPath => AutomationUiPathRegistry.BestiarySearchRegexTextPath;
     private static IReadOnlyList<int> BestiaryCapturedBeastsButtonContainerPath => AutomationUiPathRegistry.BestiaryCapturedBeastsButtonContainerPath;
     private static IReadOnlyList<int> BestiaryChallengesEntriesRootPath => AutomationUiPathRegistry.BestiaryChallengesEntriesRootPath;
-    private static IReadOnlyList<int> BestiaryChallengesEntryTextPath => AutomationUiPathRegistry.BestiaryChallengesEntryTextPath;
     private static IReadOnlyList<int> BestiaryDeleteButtonPathFromBeastRow => AutomationUiPathRegistry.BestiaryDeleteButtonPathFromBeastRow;
     private static IReadOnlyList<int> BestiaryDeleteConfirmationWindowPath => AutomationUiPathRegistry.BestiaryDeleteConfirmationWindowPath;
     private static IReadOnlyList<int> BestiaryDeleteConfirmationOkayButtonPath => AutomationUiPathRegistry.BestiaryDeleteConfirmationOkayButtonPath;
