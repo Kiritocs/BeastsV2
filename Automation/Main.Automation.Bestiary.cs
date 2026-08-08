@@ -313,12 +313,29 @@ public partial class Main
             return null;
         }
     }
+    private const int BestiaryCategoryIndexFromLeft = 2;
 
     private Element TryGetBestiaryChallengesBestiaryButton()
     {
-        var challengeEntries = TryGetElementByPathQuietly(BestiaryChallengesPanel, BestiaryChallengesEntriesRootPath)?.Children;
-        return challengeEntries?
-            .FirstOrDefault(entry => entry?.IsVisible == true && TryGetChildFromIndicesQuietly(entry, BestiaryChallengesEntryTextPath)?.Text?.Trim().EqualsIgnoreCase("Bestiary") == true);
+        var entriesRoot = TryGetElementByPathQuietly(BestiaryChallengesPanel, BestiaryChallengesEntriesRootPath);
+        if (entriesRoot?.Children == null)
+        {
+            return null;
+        }
+
+        var rootWidth = entriesRoot.GetClientRect().Width;
+        var entries = entriesRoot.Children
+            .Where(entry => entry?.IsVisible == true && (entry.Children?.Count ?? 0) > 0)
+            .Where(entry =>
+            {
+                var rect = entry.GetClientRect();
+                // Skips the full-width bar background, which also passes the visibility/child checks.
+                return rect.Width > 8 && rect.Height > 8 && (rootWidth <= 0 || rect.Width < rootWidth - 1f);
+            })
+            .OrderBy(entry => entry.GetClientRect().Left)
+            .ToList();
+
+        return entries.Count > BestiaryCategoryIndexFromLeft ? entries[BestiaryCategoryIndexFromLeft] : null;
     }
 
     private Element TryGetBestiarySearchRegexTextElement()
