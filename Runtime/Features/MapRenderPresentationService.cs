@@ -10,6 +10,7 @@ internal sealed record MapRenderPresentationCallbacks(
     Func<Color> GetCaptureTextColor,
     Func<Color> GetCapturedTextColor,
     Func<bool> GetShowNameInsteadOfPrice,
+    Func<bool> GetShowPriceInsteadOfName,
     Func<string, string> GetBeastPriceTextOrNull,
     Func<Color> GetWorldCapturedBeastColor,
     Func<Color> GetWorldBeastColor,
@@ -67,7 +68,9 @@ internal sealed class MapRenderPresentationService
 
     public void BuildPreviewMapMarkerTexts(string beastName, BeastCaptureState captureState, out string primaryText, out string secondaryText)
     {
-        var label = _callbacks.GetShowNameInsteadOfPrice() ? beastName : $"{beastName} 1c";
+        var label = _callbacks.GetShowNameInsteadOfPrice() ? beastName
+            : _callbacks.GetShowPriceInsteadOfName() ? "1c"
+            : $"{beastName} 1c";
         BuildMarkerTexts(label, captureState, out primaryText, out secondaryText);
     }
 
@@ -76,7 +79,9 @@ internal sealed class MapRenderPresentationService
         var priceText = _callbacks.GetBeastPriceTextOrNull(beastName);
         var label = _callbacks.GetShowNameInsteadOfPrice()
             ? beastName
-            : !string.IsNullOrEmpty(priceText) ? $"{beastName} {priceText}" : beastName;
+            : _callbacks.GetShowPriceInsteadOfName()
+                ? !string.IsNullOrEmpty(priceText) ? priceText : beastName
+                : !string.IsNullOrEmpty(priceText) ? $"{beastName} {priceText}" : beastName;
 
         BuildMarkerTexts(label, captureState, out primaryText, out secondaryText);
     }

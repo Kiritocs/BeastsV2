@@ -1055,6 +1055,9 @@ public class MapRenderSettings
     [Menu("Show Name Only On Map Labels", "On the large overlay map, show only the beast name without the price. Useful if you find prices distracting on the map. Only affects map markers, not inventory or stash overlays.")]
     public ToggleNode ShowNameInsteadOfPrice { get; set; } = new(false);
 
+    [Menu("Show Price Only On Map Labels", "On the large overlay map, show only the price without the beast name.")]
+    public ToggleNode ShowPriceInsteadOfName { get; set; } = new(false);
+
     [Menu("Show Style Preview Window", "Show a movable preview window with sample beast labels so you can see how your current color, text, and capture-status styling looks without needing to find a live beast in a map.")]
     public ToggleNode ShowStylePreviewWindow { get; set; } = new(false);
 
