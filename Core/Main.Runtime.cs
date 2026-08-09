@@ -404,6 +404,7 @@ public partial class Main
             () => Settings.MapRender.CapturedText.CaptureTextColor.Value,
             () => Settings.MapRender.CapturedText.CapturedTextColor.Value,
             () => Settings.MapRender.ShowNameInsteadOfPrice.Value,
+            () => Settings.MapRender.ShowPriceInsteadOfName.Value,
             beastName => BeastLookup.TryGetBeastPriceText(beastName, out var priceText) ? priceText : null,
             () => Settings.MapRender.Colors.WorldCapturedBeastColor.Value,
             () => Settings.MapRender.Colors.WorldBeastColor.Value,

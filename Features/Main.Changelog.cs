@@ -8,6 +8,15 @@ public partial class Main
 {
     private static readonly ChangelogEntry[] Changelog =
     [
+        new(2026, 08, 09, 1,
+            "Tracking: Markers & Prices -> Added Show Price Only On Map Labels, which shows just the price on large-map labels without the beast name."),
+        new(2026, 08, 08, 2,
+            "Automation now finds the Bestiary Challenges panel's \"Bestiary\" category tab by its position instead of a fixed UI path, so it keeps working if the panel layout shifts."),
+        new(2026, 08, 08, 1,
+            "Price Data summary now shows \"Not loaded yet\" instead of a stale or misleading last-updated time until prices have actually been fetched this session."),
+        new(2026, 08, 05, 1,
+            "Automation: Merchant -> Added Refresh Prices Before Listing and Max Price Age Before Listing, so Faustus listings can wait for a fresh poe.ninja price fetch instead of using whatever the last background refresh left behind.",
+            "If the refresh fails or times out, listing continues with the prices already loaded instead of aborting the run."),
         new(2026, 07, 31, 1,
             "Tracking: Price Data -> the beast list now has a search box so you can find a beast by name or family instead of scrolling.",
             "Beast search fragments and the default Bestiary Clipboard -> Manual Regex were cleaned up so the Bestiary filter matches the right beasts.",
