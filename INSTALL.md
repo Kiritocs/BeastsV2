@@ -1,5 +1,10 @@
 # Install
 
+> **BeastsV2 is discontinued.** Install [Beasts V3](https://github.com/Kiritocs/BeastsV3) instead —
+> paste `https://github.com/Kiritocs/BeastsV3` into PluginUpdater's `Repository URL`. The steps
+> below are kept for anyone still running V2.
+
+
 ## Install With PluginUpdater
 
 1. Open ExileApi.

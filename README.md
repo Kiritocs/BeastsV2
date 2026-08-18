@@ -1,5 +1,19 @@
 # BeastsV2
 
+> ## Discontinued — replaced by [Beasts V3](https://github.com/Kiritocs/BeastsV3)
+>
+> BeastsV2 is no longer developed or supported and will not be updated for future patches.
+> **Beasts V3** is a ground-up rewrite that replaces it: same bestiary workflow, plus batched
+> item transfers, input humanization, a Panic Stop hotkey, per-map analytics with a local
+> dashboard, and a reworked settings menu.
+>
+> **Switching over:** in `PluginUpdater` → `Add`, paste `https://github.com/Kiritocs/BeastsV3`,
+> press `Clone`, then disable or remove BeastsV2 so the two don't both draw overlays. Settings do
+> not carry over — V3 ships with everything off and no hotkeys bound, so set it up once from
+> scratch.
+>
+> Everything below is kept for reference for anyone still running V2.
+
 Bestiary farming automation and analytics plugin for ExileApi.
 
 Version: 0.1.0
